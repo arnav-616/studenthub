@@ -4,29 +4,24 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import {
-  PlusIcon,
-  MagnifyingGlassIcon,
+  PlusIcon, MagnifyingGlassIcon, SparklesIcon,
+  CheckIcon, TrashIcon, PencilSquareIcon,
+  ChevronDownIcon, XMarkIcon, PaperAirplaneIcon,
   FunnelIcon,
-  SparklesIcon,
-  CheckIcon,
-  TrashIcon,
-  PencilSquareIcon,
-  ChevronDownIcon,
-  XMarkIcon,
-  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline'
 import Card from '../components/ui/Card'
 import { assignments as assignmentsApi, subjects as subjectsApi, ai } from '../api/client'
 import { toUnix, formatDueDateFull, getDueStatus, getDueBadgeColor } from '../utils/dates'
 import { cn } from '../utils/cn'
 
-const TYPES = ['Essay', 'Problem Set', 'Lab Report', 'Exam', 'Quiz', 'Project', 'Reading', 'Presentation', 'Other']
-const DIFFICULTIES = ['Low', 'Medium', 'High']
-const STATUSES = ['pending', 'in_progress', 'completed']
+const TYPES = ['Essay','Problem Set','Lab Report','Exam','Quiz','Project','Reading','Presentation','Other']
+const DIFFICULTIES = ['Low','Medium','High']
+const STATUSES = ['pending','in_progress','completed']
 
-function StatusDot({ status }) {
-  const colors = { pending: 'bg-white/20', in_progress: 'bg-amber-400', completed: 'bg-emerald-400' }
-  return <span className={cn('inline-block w-2 h-2 rounded-full', colors[status] || colors.pending)} />
+const DIFF_STYLE = {
+  High:   { bg: 'rgba(239,68,68,0.12)',  text: '#f87171', border: 'rgba(239,68,68,0.2)' },
+  Medium: { bg: 'rgba(245,158,11,0.10)', text: '#fbbf24', border: 'rgba(245,158,11,0.2)' },
+  Low:    { bg: 'rgba(16,185,129,0.10)', text: '#34d399', border: 'rgba(16,185,129,0.2)' },
 }
 
 function AssignmentModal({ assignment, subjects, onClose, onSave }) {
@@ -42,9 +37,7 @@ function AssignmentModal({ assignment, subjects, onClose, onSave }) {
     notes: assignment?.notes ?? '',
   })
 
-  function handleChange(k, v) {
-    setForm(f => ({ ...f, [k]: v }))
-  }
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -58,91 +51,75 @@ function AssignmentModal({ assignment, subjects, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+        onClick={onClose} />
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative glass rounded-2xl p-6 w-full max-w-lg z-10"
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="relative z-10 w-full max-w-md glass-elevated rounded-2xl p-6"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold">{isEdit ? 'Edit Assignment' : 'New Assignment'}</h2>
-          <button onClick={onClose} className="text-white/40 hover:text-white/80 transition-colors">
-            <XMarkIcon className="w-5 h-5" />
+          <h2 className="text-base font-semibold">{isEdit ? 'Edit Assignment' : 'New Assignment'}</h2>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/80 hover:bg-white/[0.06] transition-all">
+            <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="text-xs text-white/40 uppercase tracking-wide">Title *</label>
-            <input
-              className="input-field mt-1"
-              value={form.title}
-              onChange={e => handleChange('title', e.target.value)}
-              placeholder="Assignment title"
-            />
+            <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Title *</label>
+            <input className="input-field mt-1.5" value={form.title} onChange={e => set('title', e.target.value)} placeholder="Assignment title" autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-white/40 uppercase tracking-wide">Subject</label>
-              <select className="input-field mt-1" value={form.subject_id} onChange={e => handleChange('subject_id', e.target.value)}>
+              <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Subject</label>
+              <select className="input-field mt-1.5" value={form.subject_id} onChange={e => set('subject_id', e.target.value)}>
                 <option value="">None</option>
                 {subjects?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-white/40 uppercase tracking-wide">Type</label>
-              <select className="input-field mt-1" value={form.type} onChange={e => handleChange('type', e.target.value)}>
+              <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Type</label>
+              <select className="input-field mt-1.5" value={form.type} onChange={e => set('type', e.target.value)}>
                 {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-white/40 uppercase tracking-wide">Difficulty</label>
-              <select className="input-field mt-1" value={form.difficulty} onChange={e => handleChange('difficulty', e.target.value)}>
+              <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Difficulty</label>
+              <select className="input-field mt-1.5" value={form.difficulty} onChange={e => set('difficulty', e.target.value)}>
                 {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-white/40 uppercase tracking-wide">Status</label>
-              <select className="input-field mt-1" value={form.status} onChange={e => handleChange('status', e.target.value)}>
+              <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Status</label>
+              <select className="input-field mt-1.5" value={form.status} onChange={e => set('status', e.target.value)}>
                 {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-white/40 uppercase tracking-wide">Due Date</label>
-              <input type="date" className="input-field mt-1" value={form.due_date} onChange={e => handleChange('due_date', e.target.value)} />
+              <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Due Date</label>
+              <input type="date" className="input-field mt-1.5" value={form.due_date} onChange={e => set('due_date', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-white/40 uppercase tracking-wide">Est. Hours</label>
-              <input type="number" step="0.5" min="0" className="input-field mt-1" value={form.estimated_hours} onChange={e => handleChange('estimated_hours', e.target.value)} placeholder="2.5" />
+              <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Est. Hours</label>
+              <input type="number" step="0.5" min="0" className="input-field mt-1.5" value={form.estimated_hours} onChange={e => set('estimated_hours', e.target.value)} placeholder="2.5" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-white/40 uppercase tracking-wide">Notes</label>
-            <textarea
-              className="input-field mt-1 h-20 resize-none"
-              value={form.notes}
-              onChange={e => handleChange('notes', e.target.value)}
-              placeholder="Optional notes..."
-            />
+            <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Notes</label>
+            <textarea className="input-field mt-1.5 h-20 resize-none" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes..." />
           </div>
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-colors">
-              Cancel
-            </button>
-            <button type="submit" className="flex-1 btn-primary py-2.5">
-              {isEdit ? 'Save Changes' : 'Add Assignment'}
-            </button>
+            <button type="button" onClick={onClose} className="btn-ghost flex-1 justify-center py-2.5">Cancel</button>
+            <button type="submit" className="btn-primary flex-1 justify-center py-2.5">{isEdit ? 'Save Changes' : 'Add Assignment'}</button>
           </div>
         </form>
       </motion.div>
@@ -162,7 +139,7 @@ function NLAddBar({ subjects, onAdd }) {
       const parsed = await ai.parseNL(input, subjects)
       onAdd(parsed)
       setInput('')
-      toast.success('Assignment parsed by AI!')
+      toast.success('Parsed by AI!')
     } catch {
       toast.error('Could not parse — try the manual form')
     } finally {
@@ -175,106 +152,119 @@ function NLAddBar({ subjects, onAdd }) {
       <div className="flex-1 relative">
         <SparklesIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
         <input
-          className="input-field pl-9 pr-4"
+          className="input-field pl-9"
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder='Try: "Calc problem set due Friday, 3 hours, hard"'
+          placeholder='e.g. "Calc problem set due Friday, 3 hours, hard"'
         />
       </div>
-      <button
+      <motion.button
         type="submit"
         disabled={loading || !input.trim()}
-        className="btn-primary px-4 flex items-center gap-2 disabled:opacity-50"
+        className="btn-primary px-4 disabled:opacity-50"
+        whileTap={{ scale: 0.97 }}
       >
-        {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <PaperAirplaneIcon className="w-4 h-4" />}
+        {loading
+          ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          : <PaperAirplaneIcon className="w-4 h-4" />
+        }
         {loading ? 'Parsing...' : 'Add'}
-      </button>
+      </motion.button>
     </form>
   )
 }
 
-function AssignmentRow({ assignment, onEdit, onDelete, onToggle }) {
+function AssignmentRow({ assignment, onEdit, onDelete, onToggle, index }) {
   const [expanded, setExpanded] = useState(false)
   const status = getDueStatus(assignment.due_date)
+  const isComplete = assignment.status === 'completed'
+  const diff = DIFF_STYLE[assignment.difficulty] || DIFF_STYLE.Medium
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8, height: 0 }}
-      className="glass rounded-xl overflow-hidden"
+      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+      transition={{ duration: 0.2, delay: index * 0.02 }}
+      className="rounded-xl overflow-hidden"
+      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}
     >
-      <div className="flex items-center gap-3 p-3.5">
-        <button
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        {/* Checkbox */}
+        <motion.button
           onClick={() => onToggle(assignment)}
-          className={cn(
-            'w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all',
-            assignment.status === 'completed'
-              ? 'bg-emerald-500 border-emerald-500'
-              : 'border-white/20 hover:border-emerald-400'
-          )}
+          className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all"
+          style={{
+            background: isComplete ? '#10b981' : 'transparent',
+            borderColor: isComplete ? '#10b981' : 'rgba(255,255,255,0.2)',
+          }}
+          whileTap={{ scale: 0.9 }}
+          whileHover={{ borderColor: isComplete ? '#10b981' : 'rgba(16,185,129,0.6)' }}
         >
-          {assignment.status === 'completed' && <CheckIcon className="w-3 h-3 text-white" />}
-        </button>
+          {isComplete && <CheckIcon className="w-3 h-3 text-white" />}
+        </motion.button>
 
+        {/* Subject dot */}
+        {assignment.subject_color && (
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: assignment.subject_color, boxShadow: `0 0 6px ${assignment.subject_color}80` }} />
+        )}
+
+        {/* Title + meta */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={cn('text-sm font-medium truncate', assignment.status === 'completed' && 'line-through text-white/40')}>
-              {assignment.title}
-            </span>
-            {assignment.subject_color && (
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: assignment.subject_color }} />
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-xs text-white/30">{assignment.subject_name || 'No subject'}</span>
-            <span className="text-white/20">·</span>
-            <span className="text-xs text-white/30">{assignment.type}</span>
+          <p className={cn('text-sm font-medium truncate', isComplete && 'line-through text-white/35')}>
+            {assignment.title}
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            {assignment.subject_name && <span className="text-xs text-white/30">{assignment.subject_name}</span>}
+            <span className="text-white/15 text-xs">·</span>
+            <span className="text-xs text-white/25">{assignment.type}</span>
             {assignment.estimated_hours && (
-              <>
-                <span className="text-white/20">·</span>
-                <span className="text-xs text-white/30">{assignment.estimated_hours}h</span>
-              </>
+              <><span className="text-white/15 text-xs">·</span><span className="text-xs text-white/25">{assignment.estimated_hours}h</span></>
             )}
           </div>
         </div>
 
+        {/* Badges */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {assignment.due_date && (
             <span className={cn('text-xs px-2 py-0.5 rounded-full', getDueBadgeColor(status))}>
               {formatDueDateFull(assignment.due_date)}
             </span>
           )}
-          <span className={cn(
-            'text-xs px-2 py-0.5 rounded-full',
-            assignment.difficulty === 'High' ? 'bg-red-500/10 text-red-400' :
-            assignment.difficulty === 'Medium' ? 'bg-amber-500/10 text-amber-400' :
-            'bg-emerald-500/10 text-emerald-400'
-          )}>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: diff.bg, color: diff.text, border: `1px solid ${diff.border}` }}>
             {assignment.difficulty}
           </span>
-          <button onClick={() => setExpanded(e => !e)} className="text-white/30 hover:text-white/60 transition-colors p-1">
-            <ChevronDownIcon className={cn('w-4 h-4 transition-transform', expanded && 'rotate-180')} />
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
+          {assignment.notes && (
+            <button onClick={() => setExpanded(e => !e)} className="w-7 h-7 flex items-center justify-center rounded-lg text-white/25 hover:text-white/60 hover:bg-white/[0.05] transition-all">
+              <ChevronDownIcon className={cn('w-3.5 h-3.5 transition-transform', expanded && 'rotate-180')} />
+            </button>
+          )}
+          <button onClick={() => onEdit(assignment)} className="w-7 h-7 flex items-center justify-center rounded-lg text-white/25 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all">
+            <PencilSquareIcon className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => onEdit(assignment)} className="text-white/30 hover:text-indigo-400 transition-colors p-1">
-            <PencilSquareIcon className="w-4 h-4" />
-          </button>
-          <button onClick={() => onDelete(assignment.id)} className="text-white/30 hover:text-red-400 transition-colors p-1">
-            <TrashIcon className="w-4 h-4" />
+          <button onClick={() => onDelete(assignment.id)} className="w-7 h-7 flex items-center justify-center rounded-lg text-white/25 hover:text-red-400 hover:bg-red-500/10 transition-all">
+            <TrashIcon className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       <AnimatePresence>
-        {expanded && assignment.notes && (
+        {expanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="border-t border-white/[0.06] px-4 py-3"
+            className="overflow-hidden"
           >
-            <p className="text-sm text-white/50">{assignment.notes}</p>
+            <div className="px-4 pb-3 pt-0">
+              <div className="h-px bg-white/[0.05] mb-3" />
+              <p className="text-sm text-white/45 leading-relaxed">{assignment.notes}</p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -284,7 +274,7 @@ function AssignmentRow({ assignment, onEdit, onDelete, onToggle }) {
 
 export default function Assignments() {
   const qc = useQueryClient()
-  const [modal, setModal] = useState(null) // null | 'new' | assignment object
+  const [modal, setModal] = useState(null)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
@@ -303,52 +293,47 @@ export default function Assignments() {
   const createMut = useMutation({
     mutationFn: assignmentsApi.create,
     onSuccess: () => { qc.invalidateQueries(['assignments']); qc.invalidateQueries(['dashboard']); toast.success('Assignment added'); setModal(null) },
-    onError: () => toast.error('Failed to add assignment'),
+    onError: () => toast.error('Failed to add'),
   })
 
   const updateMut = useMutation({
     mutationFn: ({ id, ...data }) => assignmentsApi.update(id, data),
-    onSuccess: () => { qc.invalidateQueries(['assignments']); qc.invalidateQueries(['dashboard']); toast.success('Assignment updated'); setModal(null) },
-    onError: () => toast.error('Failed to update'),
+    onSuccess: () => { qc.invalidateQueries(['assignments']); qc.invalidateQueries(['dashboard']); setModal(null) },
+    onError: () => toast.error('Update failed'),
   })
 
   const deleteMut = useMutation({
     mutationFn: assignmentsApi.delete,
-    onSuccess: () => { qc.invalidateQueries(['assignments']); qc.invalidateQueries(['dashboard']); toast.success('Deleted') },
+    onSuccess: () => { qc.invalidateQueries(['assignments']); qc.invalidateQueries(['dashboard']) },
   })
 
   function handleSave(data) {
-    if (modal?.id) {
-      updateMut.mutate({ id: modal.id, ...data })
-    } else {
-      createMut.mutate(data)
-    }
+    modal?.id ? updateMut.mutate({ id: modal.id, ...data }) : createMut.mutate(data)
   }
 
   function handleToggle(a) {
-    const newStatus = a.status === 'completed' ? 'pending' : 'completed'
-    updateMut.mutate({ id: a.id, status: newStatus })
+    updateMut.mutate({ id: a.id, status: a.status === 'completed' ? 'pending' : 'completed' })
   }
 
-  async function handleNLAdd(parsed) {
-    createMut.mutate(parsed)
-  }
-
-  const pending = assignmentData.filter(a => a.status !== 'completed')
+  const pending   = assignmentData.filter(a => a.status !== 'completed')
   const completed = assignmentData.filter(a => a.status === 'completed')
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-w-4xl">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Assignments</h1>
-          <p className="text-white/40 text-sm mt-0.5">{pending.length} pending · {completed.length} done</p>
+          <p className="text-white/35 text-sm mt-0.5">
+            <span className="text-white/70 font-medium">{pending.length}</span> pending
+            {completed.length > 0 && <> · <span className="text-emerald-400/70">{completed.length}</span> done</>}
+          </p>
         </div>
         <motion.button
           onClick={() => setModal('new')}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary"
           whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+          whileTap={{ scale: 0.97 }}
         >
           <PlusIcon className="w-4 h-4" />
           New Assignment
@@ -356,18 +341,19 @@ export default function Assignments() {
       </div>
 
       {/* NL Add */}
-      <Card>
-        <p className="text-xs text-white/40 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+      <div className="rounded-2xl p-4"
+        style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.18)' }}>
+        <div className="flex items-center gap-1.5 mb-2.5">
           <SparklesIcon className="w-3.5 h-3.5 text-indigo-400" />
-          Natural Language Add
-        </p>
-        <NLAddBar subjects={subjects} onAdd={handleNLAdd} />
-      </Card>
+          <span className="text-xs font-semibold text-indigo-300 tracking-wide">Natural Language Add</span>
+        </div>
+        <NLAddBar subjects={subjects} onAdd={data => createMut.mutate(data)} />
+      </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         <div className="relative flex-1 min-w-48">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
           <input
             className="input-field pl-9 text-sm"
             placeholder="Search assignments..."
@@ -375,66 +361,65 @@ export default function Assignments() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className="input-field text-sm min-w-32" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-          <option value="">All Status</option>
+        <select className="input-field text-sm min-w-[120px] flex-none" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="">All status</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
         </select>
-        <select className="input-field text-sm min-w-32" value={filterSubject} onChange={e => setFilterSubject(e.target.value)}>
-          <option value="">All Subjects</option>
+        <select className="input-field text-sm min-w-[120px] flex-none" value={filterSubject} onChange={e => setFilterSubject(e.target.value)}>
+          <option value="">All subjects</option>
           {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <select className="input-field text-sm min-w-32" value={sortField} onChange={e => setSortField(e.target.value)}>
-          <option value="due_date">Sort: Due Date</option>
-          <option value="created_at">Sort: Created</option>
-          <option value="title">Sort: Title</option>
-          <option value="difficulty">Sort: Difficulty</option>
+        <select className="input-field text-sm min-w-[130px] flex-none" value={sortField} onChange={e => setSortField(e.target.value)}>
+          <option value="due_date">Due Date</option>
+          <option value="created_at">Created</option>
+          <option value="title">Title</option>
+          <option value="difficulty">Difficulty</option>
         </select>
       </div>
 
-      {/* Assignment list */}
+      {/* List */}
       {isLoading ? (
         <div className="space-y-2">
-          {[1,2,3,4].map(i => <div key={i} className="skeleton h-16 rounded-xl" />)}
+          {[1,2,3,4,5].map(i => <div key={i} className="skeleton h-[60px] rounded-xl" />)}
         </div>
       ) : assignmentData.length === 0 ? (
-        <Card className="text-center py-12">
-          <p className="text-white/30 text-lg">No assignments found</p>
-          <p className="text-white/20 text-sm mt-1">Add one above or use natural language!</p>
-        </Card>
+        <div className="text-center py-16 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.06)' }}>
+          <p className="text-4xl mb-3">📋</p>
+          <p className="text-white/30">No assignments found</p>
+          <p className="text-white/20 text-sm mt-1">Add one above or use the natural language bar!</p>
+        </div>
       ) : (
-        <div className="space-y-2">
-          <AnimatePresence mode="popLayout">
-            {pending.map(a => (
-              <AssignmentRow
-                key={a.id}
-                assignment={a}
-                onEdit={setModal}
-                onDelete={id => deleteMut.mutate(id)}
-                onToggle={handleToggle}
-              />
-            ))}
-          </AnimatePresence>
-
-          {completed.length > 0 && (
-            <div className="pt-2">
-              <p className="text-xs text-white/30 uppercase tracking-wide mb-2">Completed</p>
+        <div className="space-y-4">
+          {pending.length > 0 && (
+            <div className="space-y-1.5">
               <AnimatePresence mode="popLayout">
-                {completed.map(a => (
-                  <AssignmentRow
-                    key={a.id}
-                    assignment={a}
-                    onEdit={setModal}
-                    onDelete={id => deleteMut.mutate(id)}
-                    onToggle={handleToggle}
-                  />
+                {pending.map((a, i) => (
+                  <AssignmentRow key={a.id} assignment={a} index={i}
+                    onEdit={setModal} onDelete={id => deleteMut.mutate(id)} onToggle={handleToggle} />
                 ))}
               </AnimatePresence>
+            </div>
+          )}
+          {completed.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-px flex-1 bg-white/[0.05]" />
+                <span className="text-[11px] text-white/25 font-medium uppercase tracking-widest">Completed · {completed.length}</span>
+                <div className="h-px flex-1 bg-white/[0.05]" />
+              </div>
+              <div className="space-y-1.5 opacity-60">
+                <AnimatePresence mode="popLayout">
+                  {completed.map((a, i) => (
+                    <AssignmentRow key={a.id} assignment={a} index={i}
+                      onEdit={setModal} onDelete={id => deleteMut.mutate(id)} onToggle={handleToggle} />
+                  ))}
+                </AnimatePresence>
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Modal */}
       <AnimatePresence>
         {modal && (
           <AssignmentModal
