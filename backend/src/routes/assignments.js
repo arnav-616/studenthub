@@ -43,15 +43,18 @@ router.post('/', (req, res) => {
     title, subject_id, type = 'assignment', difficulty = 'medium',
     due_date, due_time, estimated_hours, grade_weight, notes, url,
     is_recurring = 0, recur_pattern, priority = 0, subtasks = [],
+    sessions_total, sessions_completed = 0, session_duration_mins,
   } = req.body
   if (!title) return res.status(400).json({ error: 'Title is required' })
   db.prepare(`
     INSERT INTO assignments (id,title,subject_id,type,difficulty,due_date,due_time,
-      estimated_hours,grade_weight,notes,url,is_recurring,recur_pattern,priority)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      estimated_hours,grade_weight,notes,url,is_recurring,recur_pattern,priority,
+      sessions_total,sessions_completed,session_duration_mins)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(id, title, subject_id || null, type, difficulty, due_date || null, due_time || null,
     estimated_hours || null, grade_weight || null, notes || null, url || null,
-    is_recurring ? 1 : 0, recur_pattern || null, priority)
+    is_recurring ? 1 : 0, recur_pattern || null, priority,
+    sessions_total || null, sessions_completed || 0, session_duration_mins || null)
 
   if (subtasks.length) {
     const insertSt = db.prepare('INSERT INTO subtasks (id,assignment_id,title,position) VALUES (?,?,?,?)')
@@ -67,7 +70,8 @@ router.put('/:id', (req, res) => {
   if (!existing) return res.status(404).json({ error: 'Not found' })
 
   const fields = ['title','subject_id','type','difficulty','status','due_date','due_time',
-    'estimated_hours','actual_hours','grade_weight','notes','url','is_recurring','recur_pattern','priority']
+    'estimated_hours','actual_hours','grade_weight','notes','url','is_recurring','recur_pattern','priority',
+    'sessions_total','sessions_completed','session_duration_mins']
   const updates = []
   const params = []
   for (const f of fields) {

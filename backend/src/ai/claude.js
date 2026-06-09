@@ -1,7 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-// Fallback chain — tries each model in order, moves to next on 503
-const MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-flash-latest']
+// Fallback chain — tries each in order, skips on 503 (overload) or 429 (quota 0)
+const MODEL_CHAIN = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite-preview-06-17',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-flash',
+]
 
 let _genAI = null
 function getModel(modelName) {
@@ -12,9 +17,13 @@ function getModel(modelName) {
   })
 }
 
-function is503(err) {
+function isSkippable(err) {
   const m = err?.message || ''
-  return m.includes('503') || m.includes('Service Unavailable') || m.includes('high demand')
+  return (
+    m.includes('503') || m.includes('Service Unavailable') || m.includes('high demand') ||
+    m.includes('429') || m.includes('Too Many Requests') || m.includes('quota') ||
+    m.includes('not found') || m.includes('404')
+  )
 }
 
 async function generate(prompt) {
@@ -24,7 +33,7 @@ async function generate(prompt) {
       const result = await getModel(model).generateContent(prompt)
       return JSON.parse(result.response.text())
     } catch (err) {
-      if (is503(err)) { lastErr = err; continue }
+      if (isSkippable(err)) { lastErr = err; continue }
       throw err
     }
   }
@@ -81,13 +90,15 @@ Today's date: ${today.toDateString()}
 Available subjects: ${subjectsList || 'none'}
 
 Extract and infer:
-- title: the assignment name
+- title: the assignment name (concise)
 - type: one of exactly: assignment, exam, essay, problem_set, reading, project, quiz, lab
 - difficulty: one of exactly: low, medium, high
 - due_date: ISO date string YYYY-MM-DD if a date is mentioned — resolve relative dates like "Friday", "next week", "in 3 days". Use null if no date.
-- estimated_hours: number if mentioned (e.g. "3 hours" = 3), null if not
+- estimated_hours: total estimated hours if directly stated (e.g. "3 hours" = 3), null if not — do NOT compute from sessions
 - subject_id: the matching id from the subjects list, or null
 - notes: any extra context, or null
+- sessions_total: if the input describes multiple sessions/episodes/videos/chapters/problems with a count, extract that number. e.g. "10 videos", "5 chapters", "8 problems" → sessions_total=10/5/8. null otherwise.
+- session_duration_mins: if a per-session duration is mentioned (e.g. "30 min each", "each video is 45 minutes") extract it as an integer number of minutes. null otherwise.
 
 Respond with only this JSON:
 {
@@ -97,7 +108,9 @@ Respond with only this JSON:
   "due_date": "YYYY-MM-DD or null",
   "estimated_hours": null,
   "subject_id": null,
-  "notes": null
+  "notes": null,
+  "sessions_total": null,
+  "session_duration_mins": null
 }`
 
   return generate(prompt)

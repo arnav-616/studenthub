@@ -169,7 +169,7 @@ export default function Dashboard() {
 
   const busy = data?.busyScore ?? { score: 0, band: 'Clear' }
   const stats = data?.stats ?? {}
-  const nextDue = data?.nextDue ?? []
+  const nextDue = Array.isArray(data?.nextDue) ? data.nextDue : data?.nextDue ? [data.nextDue] : []
   const dayStrip = data?.dayStrip ?? []
   const productivity = data?.productivity ?? []
   const greeting = getGreeting()
@@ -384,24 +384,52 @@ export default function Dashboard() {
               <p className="text-white/30 text-sm">Hit Generate for a day-by-day AI study plan</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-64 overflow-y-auto pr-1">
-              {(studyPlan.days || studyPlan.plan || []).map((day, i) => (
-                <div key={i} className="p-3 rounded-xl"
-                  style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
-                  <p className="text-indigo-300 text-xs font-semibold mb-2">{day.date || day.day}</p>
-                  <div className="space-y-1">
-                    {(day.tasks || day.sessions || []).map((t, j) => (
-                      <p key={j} className="text-xs text-white/55 leading-snug">
-                        · {typeof t === 'string' ? t : (t.task || t.activity)}
-                      </p>
-                    ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-72 overflow-y-auto pr-1">
+              {(studyPlan.days || studyPlan.plan || []).map((day, i) => {
+                const tasks = day.tasks || day.sessions || []
+                const totalH = day.totalHours ?? tasks.reduce((s, t) => s + (t.hours || 0), 0)
+                return (
+                  <div key={i} className="p-3 rounded-xl flex flex-col gap-1.5"
+                    style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <p className="text-indigo-300 text-xs font-bold">{day.dayName || day.day || day.date}</p>
+                      {totalH > 0 && <span className="text-[10px] text-white/30">{totalH}h</span>}
+                    </div>
+                    {tasks.length === 0 ? (
+                      <p className="text-[11px] text-white/20 italic">Rest day</p>
+                    ) : tasks.map((t, j) => {
+                      const label = typeof t === 'string' ? t : (t.title || t.task || t.activity || '')
+                      const hrs = typeof t === 'object' ? t.hours : null
+                      const note = typeof t === 'object' ? t.notes : null
+                      return (
+                        <div key={j} className="flex items-start gap-1.5">
+                          <span className="text-indigo-400/50 text-[10px] mt-0.5 flex-shrink-0">·</span>
+                          <div className="min-w-0">
+                            <p className="text-xs text-white/70 leading-snug">{label}{hrs ? <span className="text-white/30 ml-1">({hrs}h)</span> : null}</p>
+                            {note && <p className="text-[10px] text-white/30 leading-snug mt-0.5">{note}</p>}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                </div>
-              ))}
+                )
+              })}
+            </div>
+          )}
+          {studyPlan?.summary && (
+            <p className="text-xs text-white/40 mt-3 leading-relaxed">{studyPlan.summary}</p>
+          )}
+          {studyPlan?.warnings?.length > 0 && (
+            <div className="mt-2 p-3 rounded-xl flex items-start gap-2"
+              style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)' }}>
+              <ExclamationTriangleIcon className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                {studyPlan.warnings.map((w, i) => <p key={i} className="text-xs text-red-300/70">{w}</p>)}
+              </div>
             </div>
           )}
           {studyPlan?.tips && (
-            <div className="mt-3 p-3 rounded-xl flex items-start gap-2"
+            <div className="mt-2 p-3 rounded-xl flex items-start gap-2"
               style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)' }}>
               <LightBulbIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-amber-300/70">{studyPlan.tips}</p>

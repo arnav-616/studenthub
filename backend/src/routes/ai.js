@@ -69,6 +69,14 @@ router.post('/parse-assignment', async (req, res) => {
       )
     }
 
+    // Sanitize session fields
+    if (parsed.sessions_total !== undefined) {
+      parsed.sessions_total = parsed.sessions_total ? parseInt(parsed.sessions_total, 10) : null
+    }
+    if (parsed.session_duration_mins !== undefined) {
+      parsed.session_duration_mins = parsed.session_duration_mins ? parseInt(parsed.session_duration_mins, 10) : null
+    }
+
     res.json(parsed)
   } catch (err) {
     console.error('Parse assignment error:', err)

@@ -20,8 +20,8 @@ router.get('/', (req, res) => {
     SELECT a.*, s.name as subject_name, s.color as subject_color
     FROM assignments a LEFT JOIN subjects s ON a.subject_id = s.id
     WHERE a.status != 'completed' AND a.due_date IS NOT NULL AND a.due_date > ?
-    ORDER BY a.due_date ASC LIMIT 1
-  `).get(now)
+    ORDER BY a.due_date ASC LIMIT 5
+  `).all(now)
 
   const overdue = db.prepare(`
     SELECT COUNT(*) as count FROM assignments

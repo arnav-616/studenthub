@@ -35,6 +35,7 @@ const DIFF_STYLE = {
 
 function AssignmentModal({ assignment, subjects, onClose, onSave }) {
   const isEdit = !!assignment?.id
+  const hasSessionsInitially = !!(assignment?.sessions_total > 1 || assignment?.session_duration_mins)
   const [form, setForm] = useState({
     title: assignment?.title ?? '',
     subject_id: assignment?.subject_id ?? '',
@@ -44,9 +45,17 @@ function AssignmentModal({ assignment, subjects, onClose, onSave }) {
     due_date: assignment?.due_date ? format(new Date(assignment.due_date * 1000), 'yyyy-MM-dd') : '',
     estimated_hours: assignment?.estimated_hours ?? '',
     notes: assignment?.notes ?? '',
+    sessions_total: assignment?.sessions_total ?? '',
+    sessions_completed: assignment?.sessions_completed ?? 0,
+    session_duration_mins: assignment?.session_duration_mins ?? '',
   })
+  const [multiSession, setMultiSession] = useState(hasSessionsInitially)
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
+  const sessionHours = (form.sessions_total && form.session_duration_mins)
+    ? ((parseInt(form.sessions_total) - parseInt(form.sessions_completed || 0)) * parseInt(form.session_duration_mins) / 60).toFixed(1)
+    : null
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -55,6 +64,9 @@ function AssignmentModal({ assignment, subjects, onClose, onSave }) {
       ...form,
       due_date: form.due_date ? toUnix(form.due_date) : null,
       estimated_hours: form.estimated_hours ? parseFloat(form.estimated_hours) : null,
+      sessions_total: multiSession && form.sessions_total ? parseInt(form.sessions_total) : null,
+      sessions_completed: multiSession ? parseInt(form.sessions_completed || 0) : 0,
+      session_duration_mins: multiSession && form.session_duration_mins ? parseInt(form.session_duration_mins) : null,
     })
   }
 
@@ -122,6 +134,44 @@ function AssignmentModal({ assignment, subjects, onClose, onSave }) {
               <input type="number" step="0.5" min="0" className="input-field mt-1.5" value={form.estimated_hours} onChange={e => set('estimated_hours', e.target.value)} placeholder="2.5" />
             </div>
           </div>
+          {/* Multi-session toggle */}
+          <div className="rounded-xl p-3" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.15)' }}>
+            <label className="flex items-center justify-between cursor-pointer" onClick={() => setMultiSession(v => !v)}>
+              <div>
+                <p className="text-xs font-semibold text-indigo-300">Multi-session</p>
+                <p className="text-[10px] text-white/30 mt-0.5">Videos, chapters, problems spread over time</p>
+              </div>
+              <div className="w-9 h-5 rounded-full transition-colors flex-shrink-0" style={{ background: multiSession ? '#6366f1' : 'rgba(255,255,255,0.1)' }}>
+                <div className="w-3.5 h-3.5 rounded-full bg-white mt-0.75 transition-transform"
+                  style={{ transform: multiSession ? 'translateX(18px)' : 'translateX(2px)', marginTop: '3px' }} />
+              </div>
+            </label>
+            {multiSession && (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] text-white/40 uppercase tracking-wider">Total</label>
+                  <input type="number" min="1" className="input-field mt-1 text-sm" value={form.sessions_total}
+                    onChange={e => set('sessions_total', e.target.value)} placeholder="10" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-white/40 uppercase tracking-wider">Done</label>
+                  <input type="number" min="0" className="input-field mt-1 text-sm" value={form.sessions_completed}
+                    onChange={e => set('sessions_completed', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-white/40 uppercase tracking-wider">Min each</label>
+                  <input type="number" min="1" className="input-field mt-1 text-sm" value={form.session_duration_mins}
+                    onChange={e => set('session_duration_mins', e.target.value)} placeholder="30" />
+                </div>
+                {sessionHours && (
+                  <p className="col-span-3 text-[10px] text-indigo-300/70 mt-0.5">
+                    ≈ {sessionHours}h remaining work
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Notes</label>
             <textarea className="input-field mt-1.5 h-20 resize-none" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes..." />
@@ -233,9 +283,15 @@ function AssignmentRow({ assignment, onEdit, onDelete, onToggle, index }) {
             {assignment.subject_name && <span className="text-xs text-white/30">{assignment.subject_name}</span>}
             <span className="text-white/15 text-xs">·</span>
             <span className="text-xs text-white/25">{assignment.type}</span>
-            {assignment.estimated_hours && (
+            {assignment.sessions_total > 1 ? (
+              <><span className="text-white/15 text-xs">·</span>
+              <span className="text-xs text-indigo-400/70">
+                {assignment.sessions_completed ?? 0}/{assignment.sessions_total}
+                {assignment.session_duration_mins ? ` × ${assignment.session_duration_mins}m` : ' sessions'}
+              </span></>
+            ) : assignment.estimated_hours ? (
               <><span className="text-white/15 text-xs">·</span><span className="text-xs text-white/25">{assignment.estimated_hours}h</span></>
-            )}
+            ) : null}
           </div>
         </div>
 

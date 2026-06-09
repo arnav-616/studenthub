@@ -121,4 +121,14 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_grade_components_course ON grade_components(course_id);
     CREATE INDEX IF NOT EXISTS idx_timer_sessions_assignment ON timer_sessions(assignment_id);
   `)
+
+  // Add session columns to existing DBs (safe no-op if they already exist)
+  const sessionCols = [
+    `ALTER TABLE assignments ADD COLUMN sessions_total INTEGER DEFAULT 1`,
+    `ALTER TABLE assignments ADD COLUMN sessions_completed INTEGER DEFAULT 0`,
+    `ALTER TABLE assignments ADD COLUMN session_duration_mins INTEGER`,
+  ]
+  for (const sql of sessionCols) {
+    try { db.exec(sql) } catch (_) {}
+  }
 }

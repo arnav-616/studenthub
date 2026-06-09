@@ -6,7 +6,7 @@ const TYPE_WEIGHT = {
 }
 const CLUSTER_THRESHOLD = 3
 const CLUSTER_MULTIPLIER = 1.3
-const MAX_RAW_SCORE = 120
+const MAX_RAW_SCORE = 55
 
 export function calculateBusyScore(assignments, workStyle = 'on_time') {
   const now = Date.now()
@@ -50,7 +50,12 @@ export function calculateBusyScore(assignments, workStyle = 'on_time') {
 
       const diff = DIFFICULTY[a.difficulty] ?? 1.0
       const type = TYPE_WEIGHT[a.type] ?? 1.0
-      const hours = a.estimated_hours ? Math.log1p(a.estimated_hours) * 1.5 + 1 : 1.0
+
+      // Effective hours: explicit estimate beats sessions calculation beats default
+      const sessionsRemaining = (a.sessions_total ?? 1) - (a.sessions_completed ?? 0)
+      const sessionHours = a.session_duration_mins ? (sessionsRemaining * a.session_duration_mins) / 60 : null
+      const effectiveHours = a.estimated_hours ?? sessionHours ?? null
+      const hours = effectiveHours ? 1 + effectiveHours * 0.45 : 1.0
 
       const raw = urgency * diff * type * hours
       dayScore += raw
