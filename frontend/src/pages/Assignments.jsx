@@ -14,14 +14,23 @@ import { assignments as assignmentsApi, subjects as subjectsApi, ai } from '../a
 import { toUnix, formatDueDateFull, getDueStatus, getDueBadgeColor } from '../utils/dates'
 import { cn } from '../utils/cn'
 
-const TYPES = ['Essay','Problem Set','Lab Report','Exam','Quiz','Project','Reading','Presentation','Other']
-const DIFFICULTIES = ['Low','Medium','High']
+const TYPE_OPTIONS = [
+  { label: 'Essay', value: 'essay' },
+  { label: 'Problem Set', value: 'problem_set' },
+  { label: 'Lab', value: 'lab' },
+  { label: 'Exam', value: 'exam' },
+  { label: 'Quiz', value: 'quiz' },
+  { label: 'Project', value: 'project' },
+  { label: 'Reading', value: 'reading' },
+  { label: 'Other', value: 'assignment' },
+]
+const DIFFICULTIES = ['low','medium','high']
 const STATUSES = ['pending','in_progress','completed']
 
 const DIFF_STYLE = {
-  High:   { bg: 'rgba(239,68,68,0.12)',  text: '#f87171', border: 'rgba(239,68,68,0.2)' },
-  Medium: { bg: 'rgba(245,158,11,0.10)', text: '#fbbf24', border: 'rgba(245,158,11,0.2)' },
-  Low:    { bg: 'rgba(16,185,129,0.10)', text: '#34d399', border: 'rgba(16,185,129,0.2)' },
+  high:   { bg: 'rgba(239,68,68,0.12)',  text: '#f87171', border: 'rgba(239,68,68,0.2)' },
+  medium: { bg: 'rgba(245,158,11,0.10)', text: '#fbbf24', border: 'rgba(245,158,11,0.2)' },
+  low:    { bg: 'rgba(16,185,129,0.10)', text: '#34d399', border: 'rgba(16,185,129,0.2)' },
 }
 
 function AssignmentModal({ assignment, subjects, onClose, onSave }) {
@@ -29,8 +38,8 @@ function AssignmentModal({ assignment, subjects, onClose, onSave }) {
   const [form, setForm] = useState({
     title: assignment?.title ?? '',
     subject_id: assignment?.subject_id ?? '',
-    type: assignment?.type ?? 'Essay',
-    difficulty: assignment?.difficulty ?? 'Medium',
+    type: assignment?.type ?? 'essay',
+    difficulty: assignment?.difficulty ?? 'medium',
     status: assignment?.status ?? 'pending',
     due_date: assignment?.due_date ? format(new Date(assignment.due_date * 1000), 'yyyy-MM-dd') : '',
     estimated_hours: assignment?.estimated_hours ?? '',
@@ -85,7 +94,7 @@ function AssignmentModal({ assignment, subjects, onClose, onSave }) {
             <div>
               <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Type</label>
               <select className="input-field mt-1.5" value={form.type} onChange={e => set('type', e.target.value)}>
-                {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {TYPE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
           </div>
@@ -93,7 +102,7 @@ function AssignmentModal({ assignment, subjects, onClose, onSave }) {
             <div>
               <label className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Difficulty</label>
               <select className="input-field mt-1.5" value={form.difficulty} onChange={e => set('difficulty', e.target.value)}>
-                {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+                {DIFFICULTIES.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
               </select>
             </div>
             <div>
@@ -140,8 +149,13 @@ function NLAddBar({ subjects, onAdd }) {
       onAdd(parsed)
       setInput('')
       toast.success('Parsed by AI!')
-    } catch {
-      toast.error('Could not parse — try the manual form')
+    } catch (err) {
+      const msg = err?.message || ''
+      if (msg.includes('authentication') || msg.includes('API key') || msg.includes('apiKey')) {
+        toast.error('Add your Anthropic API key to backend/.env to use AI features')
+      } else {
+        toast.error(msg ? `AI error: ${msg}` : 'Could not parse — try the manual form')
+      }
     } finally {
       setLoading(false)
     }
@@ -233,7 +247,7 @@ function AssignmentRow({ assignment, onEdit, onDelete, onToggle, index }) {
             </span>
           )}
           <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: diff.bg, color: diff.text, border: `1px solid ${diff.border}` }}>
-            {assignment.difficulty}
+            {assignment.difficulty ? assignment.difficulty.charAt(0).toUpperCase() + assignment.difficulty.slice(1) : '—'}
           </span>
         </div>
 

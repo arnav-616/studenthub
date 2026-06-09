@@ -134,13 +134,22 @@ export default function Dashboard() {
     queryFn: dashboard.get,
   })
 
+  function handleAiError(err, label) {
+    const msg = err?.message || ''
+    if (msg.includes('authentication') || msg.includes('API key') || msg.includes('apiKey')) {
+      toast.error('Set ANTHROPIC_API_KEY in backend/.env to enable AI features', { duration: 5000 })
+    } else {
+      toast.error(msg ? `${label}: ${msg}` : `${label} failed`)
+    }
+  }
+
   async function handleStudyPlan() {
     setLoadingPlan(true)
     try {
       const plan = await ai.studyPlan()
       setStudyPlan(plan)
-    } catch {
-      toast.error('Failed to generate study plan')
+    } catch (err) {
+      handleAiError(err, 'Study plan')
     } finally {
       setLoadingPlan(false)
     }
@@ -151,8 +160,8 @@ export default function Dashboard() {
     try {
       const debrief = await ai.weeklyDebrief()
       setWeeklyDebrief(debrief)
-    } catch {
-      toast.error('Failed to generate debrief')
+    } catch (err) {
+      handleAiError(err, 'Weekly debrief')
     } finally {
       setLoadingDebrief(false)
     }

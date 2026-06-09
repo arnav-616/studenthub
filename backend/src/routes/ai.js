@@ -36,6 +36,39 @@ router.post('/parse-assignment', async (req, res) => {
     const db = getDb()
     const subjects = db.prepare('SELECT id, name FROM subjects').all()
     const parsed = await parseNaturalLanguageAssignment(input, subjects)
+
+    // Convert due_date string (YYYY-MM-DD) → unix timestamp so it matches the DB schema
+    if (parsed.due_date && typeof parsed.due_date === 'string' && parsed.due_date !== 'null') {
+      const ts = Math.floor(new Date(parsed.due_date + 'T12:00:00').getTime() / 1000)
+      parsed.due_date = isNaN(ts) ? null : ts
+    } else {
+      parsed.due_date = null
+    }
+
+    // Ensure difficulty is lowercase to match DB CHECK constraint
+    if (parsed.difficulty) {
+      parsed.difficulty = parsed.difficulty.toLowerCase()
+    }
+
+    // Ensure type is snake_case lowercase to match DB CHECK constraint
+    const typeMap = {
+      'problem set': 'problem_set',
+      'lab report': 'lab_report',
+      'lab': 'lab',
+      'essay': 'essay',
+      'exam': 'exam',
+      'quiz': 'quiz',
+      'project': 'project',
+      'reading': 'reading',
+      'presentation': 'assignment',
+    }
+    if (parsed.type) {
+      const t = parsed.type.toLowerCase().replace(/-/g, '_')
+      parsed.type = typeMap[t] || (
+        ['assignment','exam','essay','problem_set','reading','project','quiz','lab'].includes(t) ? t : 'assignment'
+      )
+    }
+
     res.json(parsed)
   } catch (err) {
     console.error('Parse assignment error:', err)
