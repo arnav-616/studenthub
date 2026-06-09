@@ -4,53 +4,34 @@ import { calculateBusyScore } from '../utils/busyScore.js'
 
 const router = Router()
 
+function getSettings(db, userId) {
+  // Global defaults from the original settings table
+  const defaults = Object.fromEntries(
+    db.prepare('SELECT key, value FROM settings WHERE user_id IS NULL').all().map(r => [r.key, r.value])
+  )
+  // User-specific overrides from user_settings
+  const userRows = db.prepare('SELECT key, value FROM user_settings WHERE user_id = ?').all(userId)
+  const user = Object.fromEntries(userRows.map(r => [r.key, r.value]))
+  return { ...defaults, ...user }
+}
+
 router.get('/', (req, res) => {
   const db = getDb()
-  // User-specific settings take precedence over global defaults
-  const rows = db.prepare(`
-    SELECT key, value FROM settings
-    WHERE user_id = ? OR user_id IS NULL
-    ORDER BY user_id DESC
-  `).all(req.userId)
-  // Deduplicate: user-specific value wins (ordered by user_id DESC puts user rows first)
-  const seen = new Set()
-  const settings = {}
-  for (const r of rows) {
-    if (!seen.has(r.key)) { settings[r.key] = r.value; seen.add(r.key) }
-  }
-  res.json(settings)
+  res.json(getSettings(db, req.userId))
 })
 
 router.put('/', (req, res) => {
   const db = getDb()
-  const upsert = db.prepare(`
-    INSERT INTO settings (key, value, user_id) VALUES (?,?,?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    WHERE settings.user_id = ? OR settings.user_id IS NULL
-  `)
-  // Use a simpler approach: delete user's existing keys, re-insert
   const uid = req.userId
-  const update = db.transaction(entries => {
-    for (const [k, v] of entries) {
-      const existing = db.prepare('SELECT rowid FROM settings WHERE key = ? AND user_id = ?').get(k, uid)
-      if (existing) {
-        db.prepare('UPDATE settings SET value = ? WHERE key = ? AND user_id = ?').run(String(v), k, uid)
-      } else {
-        db.prepare('INSERT INTO settings (key, value, user_id) VALUES (?,?,?)').run(k, String(v), uid)
-      }
-    }
+  const upsert = db.prepare(`
+    INSERT INTO user_settings (user_id, key, value) VALUES (?,?,?)
+    ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
+  `)
+  const updateAll = db.transaction(entries => {
+    for (const [k, v] of entries) upsert.run(uid, k, String(v))
   })
-  update(Object.entries(req.body))
-  // Return merged settings
-  const rows = db.prepare(`
-    SELECT key, value FROM settings WHERE user_id = ? OR user_id IS NULL ORDER BY user_id DESC
-  `).all(uid)
-  const seen = new Set()
-  const settings = {}
-  for (const r of rows) {
-    if (!seen.has(r.key)) { settings[r.key] = r.value; seen.add(r.key) }
-  }
-  res.json(settings)
+  updateAll(Object.entries(req.body))
+  res.json(getSettings(db, uid))
 })
 
 // Heatmap data
@@ -60,9 +41,8 @@ router.get('/heatmap', (req, res) => {
   const { start, end } = req.query
   const startTs = start ? Math.floor(new Date(start).getTime() / 1000) : Math.floor(Date.now() / 1000) - 180 * 86400
   const endTs = end ? Math.floor(new Date(end).getTime() / 1000) : Math.floor(Date.now() / 1000)
-
-  const workStyleRow = db.prepare("SELECT value FROM settings WHERE key='work_style' AND (user_id = ? OR user_id IS NULL) ORDER BY user_id DESC LIMIT 1").get(uid)
-  const workStyle = workStyleRow?.value ?? 'on_time'
+  const settings = getSettings(db, uid)
+  const workStyle = settings.work_style ?? 'on_time'
   const assignments = db.prepare('SELECT * FROM assignments WHERE user_id = ?').all(uid)
 
   const days = []
@@ -82,16 +62,15 @@ router.get('/heatmap', (req, res) => {
 router.get('/export', (req, res) => {
   const db = getDb()
   const uid = req.userId
-  const data = {
+  res.json({
     assignments: db.prepare('SELECT * FROM assignments WHERE user_id = ?').all(uid),
     subjects: db.prepare('SELECT * FROM subjects WHERE user_id = ?').all(uid),
     subtasks: db.prepare('SELECT st.* FROM subtasks st JOIN assignments a ON st.assignment_id = a.id WHERE a.user_id = ?').all(uid),
     courses: db.prepare('SELECT * FROM courses WHERE user_id = ?').all(uid),
     grade_components: db.prepare('SELECT gc.* FROM grade_components gc JOIN courses c ON gc.course_id = c.id WHERE c.user_id = ?').all(uid),
-    settings: db.prepare('SELECT * FROM settings WHERE user_id = ?').all(uid),
+    settings: getSettings(db, uid),
     exported_at: new Date().toISOString(),
-  }
-  res.json(data)
+  })
 })
 
 export default router

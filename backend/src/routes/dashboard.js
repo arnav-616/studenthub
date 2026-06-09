@@ -2,6 +2,13 @@ import { Router } from 'express'
 import { getDb } from '../db/schema.js'
 import { calculateBusyScore, dailyScores } from '../utils/busyScore.js'
 
+function getWorkStyle(db, userId) {
+  const user = db.prepare("SELECT value FROM user_settings WHERE user_id = ? AND key = 'work_style'").get(userId)
+  if (user) return user.value
+  const global = db.prepare("SELECT value FROM settings WHERE key = 'work_style' AND user_id IS NULL").get()
+  return global?.value ?? 'on_time'
+}
+
 const router = Router()
 
 router.get('/', (req, res) => {
@@ -10,7 +17,7 @@ router.get('/', (req, res) => {
   const now = Math.floor(Date.now() / 1000)
   const startOfDay = Math.floor(new Date().setHours(0,0,0,0) / 1000)
 
-  const workStyle = db.prepare("SELECT value FROM settings WHERE key='work_style' AND (user_id = ? OR user_id IS NULL) ORDER BY user_id DESC LIMIT 1").get(uid)?.value ?? 'on_time'
+  const workStyle = getWorkStyle(db, uid)
   const assignments = db.prepare('SELECT * FROM assignments WHERE status != ? AND user_id = ?').all('completed', uid)
 
   const { score, band, breakdown, totalAssignments, daysWithCluster } = calculateBusyScore(assignments, workStyle)

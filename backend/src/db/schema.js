@@ -104,6 +104,13 @@ function initSchema(db) {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS user_settings (
+      user_id TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      PRIMARY KEY (user_id, key)
+    );
+
     CREATE TABLE IF NOT EXISTS study_plans (
       id TEXT PRIMARY KEY,
       generated_at INTEGER NOT NULL DEFAULT (unixepoch()),
