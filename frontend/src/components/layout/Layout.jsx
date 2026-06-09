@@ -8,7 +8,7 @@ const pageVariants = {
   exit:    { opacity: 0, y: -8 },
 }
 
-export default function Layout({ children }) {
+export default function Layout({ children, user, onLogout }) {
   const location = useLocation()
 
   return (
@@ -53,7 +53,7 @@ export default function Layout({ children }) {
         />
       </div>
 
-      <Sidebar />
+      <Sidebar user={user} onLogout={onLogout} />
 
       {/* Main content area */}
       <main className="flex-1 min-h-screen relative" style={{ marginLeft: '240px', zIndex: 1 }}>

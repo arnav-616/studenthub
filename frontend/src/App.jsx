@@ -1,9 +1,11 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import Layout from './components/layout/Layout'
 import useNotifications from './hooks/useNotifications'
 import { assignments as assignmentsApi } from './api/client'
+import Login from './pages/Login'
 
 import Dashboard from './pages/Dashboard'
 import Assignments from './pages/Assignments'
@@ -34,24 +36,55 @@ function NotificationBootstrap() {
   return null
 }
 
+function AppInner({ user, onLogout }) {
+  return (
+    <BrowserRouter>
+      <NotificationBootstrap />
+      <Layout user={user} onLogout={onLogout}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/assignments" element={<Assignments />} />
+          <Route path="/schedule" element={<Schedule />} />
+          <Route path="/timer" element={<Timer />} />
+          <Route path="/grades" element={<Grades />} />
+          <Route path="/heatmap" element={<Heatmap />} />
+          <Route path="/subjects" element={<Subjects />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Layout>
+    </BrowserRouter>
+  )
+}
+
 export default function App() {
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sh_user') || 'null') } catch { return null }
+  })
+
+  function handleAuth(u) {
+    setUser(u)
+    queryClient.clear()
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('sh_token')
+    localStorage.removeItem('sh_user')
+    queryClient.clear()
+    setUser(null)
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <NotificationBootstrap />
-        <Layout>
+      {!user ? (
+        <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/assignments" element={<Assignments />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/timer" element={<Timer />} />
-            <Route path="/grades" element={<Grades />} />
-            <Route path="/heatmap" element={<Heatmap />} />
-            <Route path="/subjects" element={<Subjects />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<Login onAuth={handleAuth} />} />
           </Routes>
-        </Layout>
-      </BrowserRouter>
+        </BrowserRouter>
+      ) : (
+        <AppInner user={user} onLogout={handleLogout} />
+      )}
       <Toaster
         position="bottom-right"
         toastOptions={{

@@ -11,6 +11,7 @@ import {
   Cog6ToothIcon,
   AcademicCapIcon,
   SparklesIcon,
+  ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline'
 
 const sections = [
@@ -39,7 +40,11 @@ const sections = [
   },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ user, onLogout }) {
+  const initials = user?.name
+    ? user.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    : user?.email?.[0]?.toUpperCase() ?? '?'
+
   return (
     <aside className="fixed left-0 top-0 h-full w-60 flex flex-col z-40"
       style={{
@@ -112,7 +117,7 @@ export default function Sidebar() {
       </nav>
 
       {/* AI hint footer */}
-      <div className="mx-3 mb-4 p-3 rounded-xl"
+      <div className="mx-3 mb-3 p-3 rounded-xl"
         style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
         <div className="flex items-center gap-2 mb-1">
           <SparklesIcon className="w-3.5 h-3.5 text-indigo-400" />
@@ -122,6 +127,25 @@ export default function Sidebar() {
           Study plans, NL assignment add &amp; weekly debrief — all on Dashboard.
         </p>
       </div>
+
+      {/* User / logout */}
+      {user && (
+        <div className="mx-3 mb-4 flex items-center gap-2 p-2.5 rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
+            style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] text-white/70 truncate font-medium">{user.name || user.email}</p>
+            {user.name && <p className="text-[10px] text-white/30 truncate">{user.email}</p>}
+          </div>
+          <button onClick={onLogout} title="Sign out"
+            className="text-white/25 hover:text-red-400 transition-colors p-1 flex-shrink-0">
+            <ArrowRightOnRectangleIcon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </aside>
   )
 }

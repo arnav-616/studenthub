@@ -5,15 +5,32 @@ const api = axios.create({
   timeout: 30000,
 })
 
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('sh_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
 api.interceptors.response.use(
   res => res.data,
   err => {
     const msg = err.response?.data?.error || err.message || 'Request failed'
+    if (err.response?.status === 401) {
+      localStorage.removeItem('sh_token')
+      localStorage.removeItem('sh_user')
+      window.location.href = '/login'
+    }
     return Promise.reject(new Error(msg))
   }
 )
 
 export default api
+
+export const auth = {
+  signup: (data) => api.post('/auth/signup', data),
+  login: (data) => api.post('/auth/login', data),
+  me: () => api.get('/auth/me'),
+}
 
 export const assignments = {
   list: (params) => api.get('/assignments', { params }),

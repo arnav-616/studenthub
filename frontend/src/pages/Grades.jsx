@@ -339,22 +339,22 @@ function CourseCard({ course }) {
 
   const addCompMut = useMutation({
     mutationFn: data => gradesApi.addComponent(course.id, data),
-    onSuccess: () => { qc.invalidateQueries(['grades']); setNewComp({ name: '', weight: '' }); setShowAddComp(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grades'] }); setNewComp({ name: '', weight: '' }); setShowAddComp(false) },
   })
 
   const updateCompMut = useMutation({
     mutationFn: ({ id, data }) => gradesApi.updateComponent(id, data),
-    onSuccess: () => qc.invalidateQueries(['grades']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['grades'] }),
   })
 
   const deleteCompMut = useMutation({
     mutationFn: gradesApi.deleteComponent,
-    onSuccess: () => qc.invalidateQueries(['grades']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['grades'] }),
   })
 
   const deleteMut = useMutation({
     mutationFn: () => gradesApi.deleteCourse(course.id),
-    onSuccess: () => qc.invalidateQueries(['grades', 'courses']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['grades', 'courses'] }),
   })
 
   function handleAddComp(e) {
@@ -528,7 +528,7 @@ export default function Grades() {
 
   const createMut = useMutation({
     mutationFn: gradesApi.createCourse,
-    onSuccess: () => { qc.invalidateQueries(['grades', 'courses']); setModal(false); toast.success('Course added') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grades', 'courses'] }); setModal(false); toast.success('Course added') },
   })
 
   const totalCredits = courses.reduce((acc, c) => acc + (c.credits || 0), 0)

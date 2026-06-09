@@ -19,6 +19,14 @@ export function getDb() {
 
 function initSchema(db) {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
     CREATE TABLE IF NOT EXISTS subjects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -132,11 +140,16 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_deps_depends_on ON assignment_dependencies(depends_on_id);
   `)
 
-  // Add session columns to existing DBs (safe no-op if they already exist)
+  // Add user_id and session columns to existing DBs (safe no-op if they already exist)
   const sessionCols = [
     `ALTER TABLE assignments ADD COLUMN sessions_total INTEGER DEFAULT 1`,
     `ALTER TABLE assignments ADD COLUMN sessions_completed INTEGER DEFAULT 0`,
     `ALTER TABLE assignments ADD COLUMN session_duration_mins INTEGER`,
+    `ALTER TABLE subjects ADD COLUMN user_id TEXT`,
+    `ALTER TABLE assignments ADD COLUMN user_id TEXT`,
+    `ALTER TABLE courses ADD COLUMN user_id TEXT`,
+    `ALTER TABLE timer_sessions ADD COLUMN user_id TEXT`,
+    `ALTER TABLE settings ADD COLUMN user_id TEXT`,
   ]
   for (const sql of sessionCols) {
     try { db.exec(sql) } catch (_) {}

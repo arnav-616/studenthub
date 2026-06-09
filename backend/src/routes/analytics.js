@@ -4,10 +4,8 @@ import { getDb } from '../db/schema.js'
 
 const router = Router()
 
-// Velocity: estimated vs actual hours by type and subject
 router.get('/velocity', (req, res) => {
   const db = getDb()
-
   const rows = db.prepare(`
     SELECT a.type, a.difficulty, a.estimated_hours, a.actual_hours,
            s.name as subject_name, s.color as subject_color, s.id as subject_id
@@ -16,9 +14,9 @@ router.get('/velocity', (req, res) => {
     WHERE a.status = 'completed'
       AND a.estimated_hours IS NOT NULL
       AND a.actual_hours IS NOT NULL
-  `).all()
+      AND a.user_id = ?
+  `).all(req.userId)
 
-  // Aggregate by type
   const byType = {}
   for (const r of rows) {
     if (!byType[r.type]) byType[r.type] = { estimated: 0, actual: 0, count: 0 }
@@ -27,14 +25,10 @@ router.get('/velocity', (req, res) => {
     byType[r.type].count++
   }
   const typeStats = Object.entries(byType).map(([type, s]) => ({
-    type,
-    avgEstimated: s.estimated / s.count,
-    avgActual: s.actual / s.count,
-    ratio: s.actual / s.estimated,
-    count: s.count,
+    type, avgEstimated: s.estimated / s.count, avgActual: s.actual / s.count,
+    ratio: s.actual / s.estimated, count: s.count,
   }))
 
-  // Aggregate by subject
   const bySubject = {}
   for (const r of rows) {
     const key = r.subject_id || '__none__'
@@ -45,38 +39,31 @@ router.get('/velocity', (req, res) => {
   }
   const subjectStats = Object.entries(bySubject).map(([id, s]) => ({
     subject_id: id === '__none__' ? null : id,
-    subject_name: s.name,
-    subject_color: s.color,
-    avgEstimated: s.estimated / s.count,
-    avgActual: s.actual / s.count,
-    ratio: s.actual / s.estimated,
-    count: s.count,
+    subject_name: s.name, subject_color: s.color,
+    avgEstimated: s.estimated / s.count, avgActual: s.actual / s.count,
+    ratio: s.actual / s.estimated, count: s.count,
   }))
 
   res.json({ byType: typeStats, bySubject: subjectStats, totalSamples: rows.length })
 })
 
-// Subject analytics: per-subject breakdown
 router.get('/subjects', (req, res) => {
   const db = getDb()
-  const subjects = db.prepare('SELECT * FROM subjects').all()
-
+  const subjects = db.prepare('SELECT * FROM subjects WHERE user_id = ?').all(req.userId)
   const now = Math.floor(Date.now() / 1000)
+
   const stats = subjects.map(s => {
-    const all = db.prepare('SELECT * FROM assignments WHERE subject_id = ?').all(s.id)
+    const all = db.prepare('SELECT * FROM assignments WHERE subject_id = ? AND user_id = ?').all(s.id, req.userId)
     const pending = all.filter(a => a.status !== 'completed')
     const completed = all.filter(a => a.status === 'completed')
     const overdue = pending.filter(a => a.due_date && a.due_date < now)
     const totalEstHours = pending.reduce((acc, a) => {
       const h = a.estimated_hours ?? (a.sessions_total && a.session_duration_mins
-        ? (a.sessions_total - (a.sessions_completed || 0)) * a.session_duration_mins / 60
-        : 0)
+        ? (a.sessions_total - (a.sessions_completed || 0)) * a.session_duration_mins / 60 : 0)
       return acc + h
     }, 0)
     const completionRate = all.length ? completed.length / all.length : 0
     const avgActual = completed.filter(a => a.actual_hours).reduce((acc, a, _, arr) => acc + a.actual_hours / arr.length, 0)
-
-    // Completion trend: last 4 weeks
     const weeklyCompleted = Array.from({ length: 4 }, (_, i) => {
       const weekStart = now - (i + 1) * 7 * 86400
       const weekEnd = now - i * 7 * 86400
@@ -84,31 +71,23 @@ router.get('/subjects', (req, res) => {
     }).reverse()
 
     return {
-      ...s,
-      totalAssignments: all.length,
-      pendingCount: pending.length,
-      completedCount: completed.length,
-      overdueCount: overdue.length,
-      completionRate: Math.round(completionRate * 100),
-      totalEstHours: Math.round(totalEstHours * 10) / 10,
-      avgActualHours: Math.round(avgActual * 10) / 10,
-      weeklyCompleted,
+      ...s, totalAssignments: all.length, pendingCount: pending.length, completedCount: completed.length,
+      overdueCount: overdue.length, completionRate: Math.round(completionRate * 100),
+      totalEstHours: Math.round(totalEstHours * 10) / 10, avgActualHours: Math.round(avgActual * 10) / 10, weeklyCompleted,
     }
   })
 
   res.json(stats)
 })
 
-// Dependency routes
 router.get('/dependencies/:assignmentId', (req, res) => {
   const db = getDb()
   const deps = db.prepare(`
-    SELECT d.*, a.title as dep_title, a.status as dep_status, a.due_date as dep_due_date,
-           a.difficulty as dep_difficulty
+    SELECT d.*, a.title as dep_title, a.status as dep_status, a.due_date as dep_due_date, a.difficulty as dep_difficulty
     FROM assignment_dependencies d
     JOIN assignments a ON d.depends_on_id = a.id
-    WHERE d.assignment_id = ?
-  `).all(req.params.assignmentId)
+    WHERE d.assignment_id = ? AND a.user_id = ?
+  `).all(req.params.assignmentId, req.userId)
   res.json(deps)
 })
 

@@ -63,7 +63,6 @@ export default function Settings() {
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
     queryFn: settingsApi.get,
-    onSuccess: data => setLocal(l => ({ ...l, ...data })),
   })
 
   useEffect(() => {
@@ -72,7 +71,7 @@ export default function Settings() {
 
   const updateMut = useMutation({
     mutationFn: settingsApi.update,
-    onSuccess: () => { qc.invalidateQueries(['settings']); toast.success('Settings saved') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['settings'] }); toast.success('Settings saved') },
     onError: () => toast.error('Failed to save settings'),
   })
 
@@ -271,12 +270,12 @@ export default function Settings() {
       <div className="flex gap-3">
         <motion.button
           onClick={handleSave}
-          disabled={updateMut.isLoading}
+          disabled={updateMut.isPending}
           className="btn-primary flex-1 py-3 flex items-center justify-center gap-2 disabled:opacity-50"
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
         >
-          {updateMut.isLoading ? (
+          {updateMut.isPending ? (
             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
             <Cog6ToothIcon className="w-4 h-4" />

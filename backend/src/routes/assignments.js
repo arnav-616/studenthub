@@ -13,9 +13,9 @@ router.get('/', (req, res) => {
       (SELECT COUNT(*) FROM subtasks st WHERE st.assignment_id = a.id AND st.completed = 1) as subtasks_done
     FROM assignments a
     LEFT JOIN subjects s ON a.subject_id = s.id
-    WHERE 1=1
+    WHERE a.user_id = ?
   `
-  const params = []
+  const params = [req.userId]
   if (status) { query += ' AND a.status = ?'; params.push(status) }
   if (subject_id) { query += ' AND a.subject_id = ?'; params.push(subject_id) }
   if (search) { query += ' AND a.title LIKE ?'; params.push(`%${search}%`) }
@@ -29,8 +29,8 @@ router.get('/:id', (req, res) => {
   const assignment = db.prepare(`
     SELECT a.*, s.name as subject_name, s.color as subject_color
     FROM assignments a LEFT JOIN subjects s ON a.subject_id = s.id
-    WHERE a.id = ?
-  `).get(req.params.id)
+    WHERE a.id = ? AND a.user_id = ?
+  `).get(req.params.id, req.userId)
   if (!assignment) return res.status(404).json({ error: 'Not found' })
   const subtasks = db.prepare('SELECT * FROM subtasks WHERE assignment_id = ? ORDER BY position').all(req.params.id)
   res.json({ ...assignment, subtasks })
@@ -49,12 +49,13 @@ router.post('/', (req, res) => {
   db.prepare(`
     INSERT INTO assignments (id,title,subject_id,type,difficulty,due_date,due_time,
       estimated_hours,grade_weight,notes,url,is_recurring,recur_pattern,priority,
-      sessions_total,sessions_completed,session_duration_mins)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      sessions_total,sessions_completed,session_duration_mins,user_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(id, title, subject_id || null, type, difficulty, due_date || null, due_time || null,
     estimated_hours || null, grade_weight || null, notes || null, url || null,
     is_recurring ? 1 : 0, recur_pattern || null, priority,
-    sessions_total || null, sessions_completed || 0, session_duration_mins || null)
+    sessions_total || null, sessions_completed || 0, session_duration_mins || null,
+    req.userId)
 
   if (subtasks.length) {
     const insertSt = db.prepare('INSERT INTO subtasks (id,assignment_id,title,position) VALUES (?,?,?,?)')
@@ -66,7 +67,7 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
   const db = getDb()
-  const existing = db.prepare('SELECT id FROM assignments WHERE id = ?').get(req.params.id)
+  const existing = db.prepare('SELECT id FROM assignments WHERE id = ? AND user_id = ?').get(req.params.id, req.userId)
   if (!existing) return res.status(404).json({ error: 'Not found' })
 
   const fields = ['title','subject_id','type','difficulty','status','due_date','due_time',
@@ -90,7 +91,7 @@ router.put('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const db = getDb()
-  db.prepare('DELETE FROM assignments WHERE id = ?').run(req.params.id)
+  db.prepare('DELETE FROM assignments WHERE id = ? AND user_id = ?').run(req.params.id, req.userId)
   res.json({ success: true })
 })
 
