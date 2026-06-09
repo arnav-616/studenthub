@@ -1,6 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// Lazy init — reads key at call time, not module load time (ESM import ordering)
+let _client = null
+function getClient() {
+  if (!_client) _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  return _client
+}
 
 export async function generateStudyPlan(assignments, settings) {
   const now = new Date()
@@ -44,7 +49,7 @@ Respond as JSON with this exact structure:
   "insights": ["1-2 motivational but honest insights"]
 }`
 
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: 'claude-opus-4-8',
     max_tokens: 2000,
     thinking: { type: 'adaptive' },
@@ -89,7 +94,7 @@ Respond as JSON only:
   "notes": "... or null"
 }`
 
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: 'claude-opus-4-8',
     max_tokens: 500,
     output_config: { format: { type: 'json_object' } },
@@ -121,7 +126,7 @@ Respond as JSON:
   "warning": "deadline warning if applicable or null"
 }`
 
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: 'claude-opus-4-8',
     max_tokens: 600,
     output_config: { format: { type: 'json_object' } },
@@ -159,7 +164,7 @@ Respond as JSON:
   "motivation": "one genuinely useful motivational sentence"
 }`
 
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: 'claude-opus-4-8',
     max_tokens: 500,
     output_config: { format: { type: 'json_object' } },

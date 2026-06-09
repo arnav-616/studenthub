@@ -1,11 +1,8 @@
+import 'dotenv/config' // Must be first — ESM hoists all imports before body runs
 import express from 'express'
 import cors from 'cors'
 import morgan from 'morgan'
-import dotenv from 'dotenv'
 import { getDb } from './src/db/schema.js'
-
-dotenv.config()
-
 import assignmentsRouter from './src/routes/assignments.js'
 import subjectsRouter from './src/routes/subjects.js'
 import dashboardRouter from './src/routes/dashboard.js'
