@@ -1,13 +1,29 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-// Lazy init — reads key at call time after dotenv has loaded
 let _genAI = null
-function getModel(jsonMode = true) {
+function getModel() {
   if (!_genAI) _genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   return _genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
-    generationConfig: jsonMode ? { responseMimeType: 'application/json' } : {},
+    generationConfig: { responseMimeType: 'application/json' },
   })
+}
+
+// Retry on 503 (model overloaded) — up to 3 attempts with 2s back-off
+async function generate(prompt, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const result = await getModel().generateContent(prompt)
+      return JSON.parse(result.response.text())
+    } catch (err) {
+      const is503 = err?.message?.includes('503') || err?.message?.includes('Service Unavailable') || err?.message?.includes('high demand')
+      if (is503 && i < retries - 1) {
+        await new Promise(r => setTimeout(r, 2000 * (i + 1)))
+        continue
+      }
+      throw err
+    }
+  }
 }
 
 export async function generateStudyPlan(assignments, settings) {
@@ -45,8 +61,7 @@ Respond with this exact JSON structure:
   "insights": ["1-2 motivational insights"]
 }`
 
-  const result = await getModel().generateContent(prompt)
-  return JSON.parse(result.response.text())
+  return generate(prompt)
 }
 
 export async function parseNaturalLanguageAssignment(input, subjects = []) {
@@ -80,8 +95,7 @@ Respond with only this JSON:
   "notes": null
 }`
 
-  const result = await getModel().generateContent(prompt)
-  return JSON.parse(result.response.text())
+  return generate(prompt)
 }
 
 export async function getAssignmentInsights(assignment, workload) {
@@ -103,8 +117,7 @@ Respond with this JSON:
   "warning": null
 }`
 
-  const result = await getModel().generateContent(prompt)
-  return JSON.parse(result.response.text())
+  return generate(prompt)
 }
 
 export async function generateWeeklyDebrief(dashboardData) {
@@ -132,6 +145,5 @@ Respond with this JSON:
   "motivation": "one genuinely useful sentence"
 }`
 
-  const result = await getModel().generateContent(prompt)
-  return JSON.parse(result.response.text())
+  return generate(prompt)
 }
