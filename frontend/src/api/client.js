@@ -69,4 +69,14 @@ export const ai = {
   parseNL: (input, subjects) => api.post('/ai/parse-assignment', { input, subjects }),
   assignmentInsights: (id) => api.post(`/ai/assignment-insights/${id}`),
   weeklyDebrief: () => api.get('/ai/weekly-debrief'),
+  parseSyllabus: (text) => api.post('/ai/parse-syllabus', { text }),
+  redistribute: () => api.post('/ai/redistribute'),
+}
+
+export const analytics = {
+  velocity: () => api.get('/analytics/velocity'),
+  subjects: () => api.get('/analytics/subjects'),
+  getDependencies: (assignmentId) => api.get(`/analytics/dependencies/${assignmentId}`),
+  addDependency: (assignment_id, depends_on_id) => api.post('/analytics/dependencies', { assignment_id, depends_on_id }),
+  removeDependency: (id) => api.delete(`/analytics/dependencies/${id}`),
 }

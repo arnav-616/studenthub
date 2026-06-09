@@ -4,10 +4,11 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
   Cog6ToothIcon, ArrowDownTrayIcon, SwatchIcon,
-  ClockIcon, BoltIcon,
+  ClockIcon, BoltIcon, BellIcon,
 } from '@heroicons/react/24/outline'
 import Card from '../components/ui/Card'
 import { settingsApi } from '../api/client'
+import { getNotifSettings, saveNotifSettings, requestPermission, sendNotification } from '../hooks/useNotifications'
 import { cn } from '../utils/cn'
 
 const ACCENT_COLORS = [
@@ -35,6 +36,29 @@ export default function Settings() {
     pomodoro_short: '5',
     pomodoro_long: '15',
   })
+
+  const [notifSettings, setNotifSettings] = useState(() => getNotifSettings())
+  const [notifPermission, setNotifPermission] = useState(() =>
+    typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
+  )
+
+  function updateNotif(key, val) {
+    const next = { ...notifSettings, [key]: val }
+    setNotifSettings(next)
+    saveNotifSettings(next)
+  }
+
+  async function handleEnableNotifications() {
+    const perm = await requestPermission()
+    setNotifPermission(perm)
+    if (perm === 'granted') {
+      updateNotif('enabled', true)
+      sendNotification('StudentHub Notifications Enabled', 'You\'ll get deadline reminders and morning digests.')
+      toast.success('Notifications enabled!')
+    } else {
+      toast.error('Notification permission denied')
+    }
+  }
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -176,6 +200,71 @@ export default function Settings() {
             </div>
           ))}
         </div>
+      </Card>
+
+      {/* Notifications */}
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <BellIcon className="w-4 h-4 text-pink-400" />
+          <h2 className="font-medium">Notifications</h2>
+        </div>
+        {notifPermission === 'unsupported' ? (
+          <p className="text-sm text-white/30">Your browser doesn't support notifications.</p>
+        ) : notifPermission !== 'granted' || !notifSettings.enabled ? (
+          <div className="space-y-2">
+            <p className="text-sm text-white/40">Get deadline reminders and a daily morning digest.</p>
+            <motion.button onClick={handleEnableNotifications} className="btn-primary text-sm py-2"
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <BellIcon className="w-4 h-4" /> Enable Notifications
+            </motion.button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-white/70">Deadline Reminders</p>
+                <p className="text-xs text-white/30 mt-0.5">Get notified before assignments are due</p>
+              </div>
+              <button onClick={() => updateNotif('deadlineReminders', !notifSettings.deadlineReminders)}
+                className="w-10 h-6 rounded-full transition-colors flex-shrink-0"
+                style={{ background: notifSettings.deadlineReminders ? '#6366f1' : 'rgba(255,255,255,0.1)' }}>
+                <div className="w-4 h-4 rounded-full bg-white transition-transform mt-1"
+                  style={{ transform: notifSettings.deadlineReminders ? 'translateX(22px)' : 'translateX(3px)' }} />
+              </button>
+            </div>
+            {notifSettings.deadlineReminders && (
+              <div className="ml-4">
+                <label className="text-xs text-white/40 uppercase tracking-wide">Hours before deadline</label>
+                <select className="input-field mt-1 text-sm w-32"
+                  value={notifSettings.reminderHours || '24'}
+                  onChange={e => updateNotif('reminderHours', e.target.value)}>
+                  <option value="1">1 hour</option>
+                  <option value="3">3 hours</option>
+                  <option value="6">6 hours</option>
+                  <option value="12">12 hours</option>
+                  <option value="24">24 hours</option>
+                  <option value="48">48 hours</option>
+                </select>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-white/70">Morning Digest</p>
+                <p className="text-xs text-white/30 mt-0.5">8am summary of today's workload</p>
+              </div>
+              <button onClick={() => updateNotif('dailyDigest', !notifSettings.dailyDigest)}
+                className="w-10 h-6 rounded-full transition-colors flex-shrink-0"
+                style={{ background: notifSettings.dailyDigest ? '#6366f1' : 'rgba(255,255,255,0.1)' }}>
+                <div className="w-4 h-4 rounded-full bg-white transition-transform mt-1"
+                  style={{ transform: notifSettings.dailyDigest ? 'translateX(22px)' : 'translateX(3px)' }} />
+              </button>
+            </div>
+            <button onClick={() => { updateNotif('enabled', false); setNotifPermission('denied') }}
+              className="text-xs text-red-400/50 hover:text-red-400 transition-colors">
+              Disable all notifications
+            </button>
+          </div>
+        )}
       </Card>
 
       {/* Actions */}

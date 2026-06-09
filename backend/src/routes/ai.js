@@ -6,6 +6,8 @@ import {
   parseNaturalLanguageAssignment,
   getAssignmentInsights,
   generateWeeklyDebrief,
+  parseSyllabus,
+  redistributeWorkload,
 } from '../ai/claude.js'
 
 const router = Router()
@@ -121,6 +123,58 @@ router.get('/weekly-debrief', async (req, res) => {
     res.json(debrief)
   } catch (err) {
     console.error('Weekly debrief error:', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/parse-syllabus', async (req, res) => {
+  try {
+    const { text } = req.body
+    if (!text || text.trim().length < 50) return res.status(400).json({ error: 'Syllabus text too short' })
+    const db = getDb()
+    const subjects = db.prepare('SELECT id, name FROM subjects').all()
+    const result = await parseSyllabus(text, subjects)
+
+    // Normalize each extracted assignment the same way as parse-assignment
+    const typeValid = ['assignment','exam','essay','problem_set','reading','project','quiz','lab']
+    const normalized = (result.assignments || []).map(parsed => {
+      if (parsed.due_date && typeof parsed.due_date === 'string' && parsed.due_date !== 'null') {
+        const ts = Math.floor(new Date(parsed.due_date + 'T12:00:00').getTime() / 1000)
+        parsed.due_date = isNaN(ts) ? null : ts
+      } else {
+        parsed.due_date = null
+      }
+      if (parsed.difficulty) parsed.difficulty = parsed.difficulty.toLowerCase()
+      if (parsed.type) {
+        const t = parsed.type.toLowerCase().replace(/-/g, '_').replace(/ /g, '_')
+        parsed.type = typeValid.includes(t) ? t : 'assignment'
+      }
+      return parsed
+    })
+
+    res.json({ assignments: normalized, courseName: result.courseName, totalFound: normalized.length })
+  } catch (err) {
+    console.error('Syllabus parse error:', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/redistribute', async (req, res) => {
+  try {
+    const db = getDb()
+    const assignments = db.prepare(`
+      SELECT a.*, s.name as subject_name FROM assignments a
+      LEFT JOIN subjects s ON a.subject_id = s.id
+      WHERE a.status != 'completed'
+    `).all()
+    const settings = Object.fromEntries(
+      db.prepare('SELECT key, value FROM settings').all().map(r => [r.key, r.value])
+    )
+    const dailyHours = parseFloat(settings.daily_study_hours || '6')
+    const plan = await redistributeWorkload(assignments, dailyHours)
+    res.json(plan)
+  } catch (err) {
+    console.error('Redistribute error:', err)
     res.status(500).json({ error: err.message })
   }
 })

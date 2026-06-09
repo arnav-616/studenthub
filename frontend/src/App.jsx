@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import Layout from './components/layout/Layout'
+import useNotifications from './hooks/useNotifications'
+import { assignments as assignmentsApi } from './api/client'
 
 import Dashboard from './pages/Dashboard'
 import Assignments from './pages/Assignments'
@@ -22,10 +24,21 @@ const queryClient = new QueryClient({
   },
 })
 
+function NotificationBootstrap() {
+  const { data: allAssignments = [] } = useQuery({
+    queryKey: ['assignments'],
+    queryFn: () => assignmentsApi.list({}),
+    staleTime: 5 * 60 * 1000,
+  })
+  useNotifications(allAssignments)
+  return null
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <NotificationBootstrap />
         <Layout>
           <Routes>
             <Route path="/" element={<Dashboard />} />

@@ -128,6 +128,8 @@ export default function Dashboard() {
   const [loadingPlan, setLoadingPlan] = useState(false)
   const [weeklyDebrief, setWeeklyDebrief] = useState(null)
   const [loadingDebrief, setLoadingDebrief] = useState(false)
+  const [redistPlan, setRedistPlan] = useState(null)
+  const [loadingRedist, setLoadingRedist] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
@@ -152,6 +154,18 @@ export default function Dashboard() {
       handleAiError(err, 'Study plan')
     } finally {
       setLoadingPlan(false)
+    }
+  }
+
+  async function handleRedistribute() {
+    setLoadingRedist(true)
+    try {
+      const plan = await ai.redistribute()
+      setRedistPlan(plan)
+    } catch (err) {
+      handleAiError(err, 'Redistribute')
+    } finally {
+      setLoadingRedist(false)
     }
   }
 
@@ -226,6 +240,55 @@ export default function Dashboard() {
         </motion.div>
       )}
 
+      {/* Redistribute plan */}
+      {redistPlan && (
+        <motion.div
+          initial={{ opacity: 0, y: -8, scale: 0.99 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0 }}
+          className="rounded-2xl p-4"
+          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)' }}
+        >
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <SparklesIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-amber-200 text-sm">Workload Redistribution Plan</p>
+                {redistPlan.summary && <p className="text-white/45 text-xs mt-0.5">{redistPlan.summary}</p>}
+              </div>
+            </div>
+            <button onClick={() => setRedistPlan(null)} className="text-white/25 hover:text-white/60 text-lg leading-none">✕</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
+            {(redistPlan.plan || []).map((day, i) => (
+              <div key={i} className="p-2.5 rounded-xl" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.12)' }}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-amber-300 text-xs font-bold">{day.dayName || day.date}</p>
+                  {day.totalHours > 0 && <span className="text-[10px] text-white/30">{day.totalHours}h</span>}
+                </div>
+                {(day.actions || []).map((a, j) => (
+                  <div key={j} className="flex items-start gap-1 mb-1">
+                    <span className="text-amber-400/40 text-[10px] mt-0.5">·</span>
+                    <p className="text-[11px] text-white/60 leading-snug">
+                      <span className="text-white/80">{a.assignmentTitle}</span>
+                      {a.hours ? <span className="text-white/30"> ({a.hours}h)</span> : null}
+                      {a.action && <span className="text-white/35"> — {a.action}</span>}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          {redistPlan.warnings?.length > 0 && (
+            <div className="mt-2 space-y-0.5">
+              {redistPlan.warnings.map((w, i) => (
+                <p key={i} className="text-xs text-amber-300/60">⚠ {w}</p>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
+
       {/* Row 1: Busy Score + Stats */}
       <div className="grid grid-cols-12 gap-4">
         {/* Busy Score */}
@@ -244,6 +307,21 @@ export default function Dashboard() {
                 </p>
               )}
             </div>
+            {busy.score >= 50 && (
+              <motion.button
+                onClick={handleRedistribute}
+                disabled={loadingRedist}
+                className="mt-2 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 disabled:opacity-50 transition-all"
+                style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }}
+                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              >
+                {loadingRedist
+                  ? <span className="w-3 h-3 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                  : <SparklesIcon className="w-3.5 h-3.5" />
+                }
+                Redistribute Load
+              </motion.button>
+            )}
           </Card>
         </motion.div>
 

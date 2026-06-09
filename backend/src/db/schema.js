@@ -119,7 +119,17 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_assignments_status ON assignments(status);
     CREATE INDEX IF NOT EXISTS idx_subtasks_assignment ON subtasks(assignment_id);
     CREATE INDEX IF NOT EXISTS idx_grade_components_course ON grade_components(course_id);
+    CREATE TABLE IF NOT EXISTS assignment_dependencies (
+      id TEXT PRIMARY KEY,
+      assignment_id TEXT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+      depends_on_id TEXT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(assignment_id, depends_on_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_timer_sessions_assignment ON timer_sessions(assignment_id);
+    CREATE INDEX IF NOT EXISTS idx_deps_assignment ON assignment_dependencies(assignment_id);
+    CREATE INDEX IF NOT EXISTS idx_deps_depends_on ON assignment_dependencies(depends_on_id);
   `)
 
   // Add session columns to existing DBs (safe no-op if they already exist)

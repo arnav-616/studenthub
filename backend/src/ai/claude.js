@@ -165,3 +165,77 @@ Respond with this JSON:
 
   return generate(prompt)
 }
+
+export async function parseSyllabus(text, subjects = []) {
+  const today = new Date()
+  const subjectsList = subjects.map(s => `${s.name} (id: ${s.id})`).join(', ')
+
+  const prompt = `You are a parser that extracts every assignment, exam, quiz, project, essay, lab, and reading from a course syllabus.
+
+Today: ${today.toDateString()}
+Available subjects: ${subjectsList || 'none — leave subject_id null'}
+
+Syllabus text:
+"""
+${text.slice(0, 8000)}
+"""
+
+Extract EVERY graded item, deadline, or deliverable. For each one:
+- title: concise name
+- type: one of: assignment, exam, essay, problem_set, reading, project, quiz, lab
+- due_date: YYYY-MM-DD if determinable, null otherwise
+- difficulty: low | medium | high
+- estimated_hours: number if inferable, null otherwise
+- subject_id: matching id from subjects list or null
+- notes: point value, weight, or any context
+
+Respond ONLY with valid JSON, no markdown:
+{
+  "assignments": [
+    { "title": "...", "type": "...", "difficulty": "...", "due_date": null, "estimated_hours": null, "subject_id": null, "notes": null }
+  ],
+  "courseName": null,
+  "totalFound": 0
+}`
+
+  return generate(prompt)
+}
+
+export async function redistributeWorkload(assignments, dailyHours = 6) {
+  const now = new Date()
+  const upcoming = assignments
+    .filter(a => a.status !== 'completed' && a.due_date)
+    .sort((a, b) => a.due_date - b.due_date)
+    .slice(0, 30)
+
+  const prompt = `A student is overloaded. Suggest how to redistribute their work across the next 7 days.
+
+Today: ${now.toDateString()}
+Daily study capacity: ${dailyHours} hours
+
+Assignments (sorted by due date):
+${upcoming.map(a => {
+    const remaining = a.sessions_total && a.session_duration_mins
+      ? `${(a.sessions_total - (a.sessions_completed || 0))} sessions × ${a.session_duration_mins}min`
+      : a.estimated_hours ? `${a.estimated_hours}h` : 'no estimate'
+    return `- "${a.title}" | Due: ${new Date(a.due_date * 1000).toDateString()} | ${remaining} | ${a.difficulty}`
+  }).join('\n')}
+
+Respond ONLY with valid JSON:
+{
+  "plan": [
+    {
+      "date": "YYYY-MM-DD",
+      "dayName": "Monday",
+      "totalHours": 4.5,
+      "actions": [
+        { "assignmentTitle": "...", "action": "what to do", "hours": 1.5 }
+      ]
+    }
+  ],
+  "warnings": [],
+  "summary": "2-sentence honest assessment"
+}`
+
+  return generate(prompt)
+}

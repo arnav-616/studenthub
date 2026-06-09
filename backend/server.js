@@ -10,6 +10,7 @@ import timerRouter from './src/routes/timer.js'
 import gradesRouter from './src/routes/grades.js'
 import settingsRouter from './src/routes/settings.js'
 import aiRouter from './src/routes/ai.js'
+import analyticsRouter from './src/routes/analytics.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -28,6 +29,7 @@ app.use('/api/timer', timerRouter)
 app.use('/api/grades', gradesRouter)
 app.use('/api/settings', settingsRouter)
 app.use('/api/ai', aiRouter)
+app.use('/api/analytics', analyticsRouter)
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }))
 
