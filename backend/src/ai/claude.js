@@ -1,29 +1,34 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
+// Fallback chain — tries each model in order, moves to next on 503
+const MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-flash-latest']
+
 let _genAI = null
-function getModel() {
+function getModel(modelName) {
   if (!_genAI) _genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   return _genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
+    model: modelName,
     generationConfig: { responseMimeType: 'application/json' },
   })
 }
 
-// Retry on 503 (model overloaded) — up to 3 attempts with 2s back-off
-async function generate(prompt, retries = 3) {
-  for (let i = 0; i < retries; i++) {
+function is503(err) {
+  const m = err?.message || ''
+  return m.includes('503') || m.includes('Service Unavailable') || m.includes('high demand')
+}
+
+async function generate(prompt) {
+  let lastErr
+  for (const model of MODEL_CHAIN) {
     try {
-      const result = await getModel().generateContent(prompt)
+      const result = await getModel(model).generateContent(prompt)
       return JSON.parse(result.response.text())
     } catch (err) {
-      const is503 = err?.message?.includes('503') || err?.message?.includes('Service Unavailable') || err?.message?.includes('high demand')
-      if (is503 && i < retries - 1) {
-        await new Promise(r => setTimeout(r, 2000 * (i + 1)))
-        continue
-      }
+      if (is503(err)) { lastErr = err; continue }
       throw err
     }
   }
+  throw new Error('AI models are busy right now — please try again in a moment')
 }
 
 export async function generateStudyPlan(assignments, settings) {
