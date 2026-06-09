@@ -152,7 +152,7 @@ function NLAddBar({ subjects, onAdd }) {
     } catch (err) {
       const msg = err?.message || ''
       if (msg.includes('authentication') || msg.includes('API key') || msg.includes('apiKey')) {
-        toast.error('Add your Anthropic API key to backend/.env to use AI features')
+        toast.error('Add your Gemini API key to backend/.env to use AI features')
       } else {
         toast.error(msg ? `AI error: ${msg}` : 'Could not parse — try the manual form')
       }

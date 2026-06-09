@@ -137,7 +137,7 @@ export default function Dashboard() {
   function handleAiError(err, label) {
     const msg = err?.message || ''
     if (msg.includes('authentication') || msg.includes('API key') || msg.includes('apiKey')) {
-      toast.error('Set ANTHROPIC_API_KEY in backend/.env to enable AI features', { duration: 5000 })
+      toast.error('Set GEMINI_API_KEY in backend/.env to enable AI features', { duration: 5000 })
     } else {
       toast.error(msg ? `${label}: ${msg}` : `${label} failed`)
     }
