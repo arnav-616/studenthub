@@ -1,0 +1,31 @@
+{
+  "name": "StudentHub",
+  "short_name": "StudentHub",
+  "description": "Your academic command center",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#080b18",
+  "background_color": "#080b18",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Assignments",
+      "url": "/assignments",
+      "description": "View your assignments"
+    },
+    {
+      "name": "Timer",
+      "url": "/timer",
+      "description": "Start a study session"
+    }
+  ]
+}

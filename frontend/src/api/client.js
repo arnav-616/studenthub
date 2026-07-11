@@ -41,6 +41,25 @@ export const assignments = {
   addSubtask: (id, data) => api.post(`/assignments/${id}/subtasks`, data),
   updateSubtask: (id, stId, data) => api.put(`/assignments/${id}/subtasks/${stId}`, data),
   deleteSubtask: (id, stId) => api.delete(`/assignments/${id}/subtasks/${stId}`),
+  exportIcs: () => {
+    const token = localStorage.getItem('sh_token')
+    const base = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+    window.open(`${base}/assignments/export.ics?token=${encodeURIComponent(token)}`, '_self')
+    return Promise.resolve()
+  },
+  exportCsv: () => {
+    const token = localStorage.getItem('sh_token')
+    const base = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+    window.open(`${base}/assignments/export.csv?token=${encodeURIComponent(token)}`, '_self')
+    return Promise.resolve()
+  },
+  createShareLink: () => api.post('/assignments/share'),
+  revokeShareLink: () => api.delete('/assignments/share'),
+  getPublicShare: (token) => fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001/api') + `/share/${token}`).then(r => r.json()),
+  getTemplates: () => api.get('/assignments/templates'),
+  createTemplate: (data) => api.post('/assignments/templates', data),
+  deleteTemplate: (id) => api.delete(`/assignments/templates/${id}`),
+  statsBySubject: () => api.get('/assignments/stats/subjects'),
 }
 
 export const subjects = {
@@ -59,6 +78,7 @@ export const timer = {
   createSession: (data) => api.post('/timer/sessions', data),
   log: (data) => api.post('/timer/sessions', data),
   getStats: () => api.get('/timer/stats'),
+  statsBySubject: () => api.get('/timer/stats/subjects'),
 }
 
 export const grades = {
@@ -71,6 +91,9 @@ export const grades = {
   updateComponent: (id, data) => api.put(`/grades/components/${id}`, data),
   deleteComponent: (id) => api.delete(`/grades/components/${id}`),
   calculate: (courseId) => api.get(`/grades/courses/${courseId}/calculate`),
+  getGPA: () => api.get('/grades/gpa'),
+  parseTranscript: (formData) => api.post('/grades/parse-transcript', formData),
+  getForgiveness: (courseId) => api.get(`/grades/courses/${courseId}/forgiveness`),
 }
 
 export const settingsApi = {
@@ -88,6 +111,41 @@ export const ai = {
   weeklyDebrief: () => api.get('/ai/weekly-debrief'),
   parseSyllabus: (text) => api.post('/ai/parse-syllabus', { text }),
   redistribute: () => api.post('/ai/redistribute'),
+  suggestTask: () => api.post('/ai/suggest-task'),
+  reviewWriting: (data) => api.post('/ai/review-writing', data),
+}
+
+export const canvasApi = {
+  sync: (data) => api.post('/canvas/sync', data),
+  syncGrades: (data) => api.post('/canvas/sync-grades', data),
+}
+
+export const studyToolsApi = {
+  generate: (formData) => api.post('/study-tools/generate', formData),
+  youtube: (url) => api.post('/study-tools/youtube', { url }),
+  followup: (data) => api.post('/study-tools/followup', data),
+}
+
+export const studySessionsApi = {
+  list: () => api.get('/study-sessions'),
+  get: (id) => api.get(`/study-sessions/${id}`),
+  create: (data) => api.post('/study-sessions', data),
+  updateMastery: (id, mastery) => api.patch(`/study-sessions/${id}/mastery`, { mastery }),
+  delete: (id) => api.delete(`/study-sessions/${id}`),
+}
+
+export const extracurricularsApi = {
+  list: () => api.get('/extracurriculars'),
+  create: (data) => api.post('/extracurriculars', data),
+  update: (id, data) => api.put(`/extracurriculars/${id}`, data),
+  delete: (id) => api.delete(`/extracurriculars/${id}`),
+}
+
+export const applicationsApi = {
+  list: () => api.get('/applications'),
+  create: (data) => api.post('/applications', data),
+  update: (id, data) => api.put(`/applications/${id}`, data),
+  delete: (id) => api.delete(`/applications/${id}`),
 }
 
 export const analytics = {

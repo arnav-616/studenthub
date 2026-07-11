@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
+import toast from 'react-hot-toast'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths,
-  addDays, startOfDay,
+  addDays,
 } from 'date-fns'
 import { ChevronLeftIcon, ChevronRightIcon, CalendarDaysIcon, ViewColumnsIcon } from '@heroicons/react/24/outline'
 import Card from '../components/ui/Card'
@@ -15,32 +16,43 @@ import { cn } from '../utils/cn'
 
 const WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-function DayCell({ day, assignments, currentMonth, onSelect, selected }) {
+function DayCell({ day, assignments, currentMonth, onSelect, selected, draggingId, isDragOver, onDragStart, onDragOver, onDrop, onDragEnd }) {
   const isCurrentMonth = isSameMonth(day, currentMonth)
   const today = isToday(day)
   const isSelected = selected && isSameDay(day, selected)
   const overdue = assignments.some(a => getDueStatus(a.due_date) === 'overdue')
 
   return (
-    <motion.button
+    <div
       onClick={() => onSelect(day)}
+      onDragOver={e => { e.preventDefault(); onDragOver(day) }}
+      onDrop={e => { e.preventDefault(); onDrop(day) }}
       className={cn(
-        'relative p-2 rounded-xl text-left transition-colors min-h-[72px] flex flex-col',
+        'relative p-2 rounded-xl text-left transition-all min-h-[72px] flex flex-col cursor-pointer',
         !isCurrentMonth && 'opacity-30',
         today && 'ring-1 ring-indigo-500/50 bg-indigo-500/5',
-        isSelected && 'bg-white/[0.06] ring-1 ring-white/20',
-        !today && !isSelected && 'hover:bg-white/[0.03]'
+        isSelected && !isDragOver && 'bg-white/[0.06] ring-1 ring-white/20',
+        isDragOver && 'bg-indigo-500/10 ring-1 ring-indigo-400/50 scale-[1.02]',
+        !today && !isSelected && !isDragOver && 'hover:bg-white/[0.03]'
       )}
-      whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
     >
-      <span className={cn('text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full',
+      <span className={cn('text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0',
         today ? 'bg-indigo-500 text-white' : 'text-white/60')}>
         {format(day, 'd')}
       </span>
       {assignments.length > 0 && (
         <div className="mt-1 space-y-0.5 flex-1 overflow-hidden">
           {assignments.slice(0, 2).map(a => (
-            <div key={a.id} className="text-[10px] truncate px-1.5 py-0.5 rounded-md"
+            <div
+              key={a.id}
+              draggable
+              onDragStart={e => { e.stopPropagation(); onDragStart(a) }}
+              onDragEnd={e => { e.stopPropagation(); onDragEnd() }}
+              onClick={e => e.stopPropagation()}
+              className={cn(
+                'text-[10px] truncate px-1.5 py-0.5 rounded-md cursor-grab active:cursor-grabbing transition-opacity',
+                draggingId === a.id && 'opacity-25'
+              )}
               style={{ background: `${a.subject_color || '#6366f1'}20`, color: a.subject_color || '#818cf8' }}>
               {a.title}
             </div>
@@ -48,8 +60,13 @@ function DayCell({ day, assignments, currentMonth, onSelect, selected }) {
           {assignments.length > 2 && <div className="text-[10px] text-white/30 px-1">+{assignments.length - 2} more</div>}
         </div>
       )}
+      {isDragOver && draggingId && (
+        <div className="mt-1 px-1.5 py-0.5 rounded-md border border-dashed border-indigo-400/40 text-[9px] text-indigo-400/60 text-center">
+          drop to reschedule
+        </div>
+      )}
       {overdue && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-red-400" />}
-    </motion.button>
+    </div>
   )
 }
 
@@ -170,6 +187,8 @@ export default function Schedule() {
   const [selectedDay, setSelectedDay] = useState(null)
   const [view, setView] = useState('month')
   const [drawer, setDrawer] = useState(null)
+  const [monthDragging, setMonthDragging] = useState(null)
+  const [monthDragOver, setMonthDragOver] = useState(null)
 
   const { data: allAssignments = [] } = useQuery({
     queryKey: ['assignments'],
@@ -178,7 +197,7 @@ export default function Schedule() {
 
   const rescheduleMut = useMutation({
     mutationFn: ({ id, due_date }) => assignmentsApi.update(id, { due_date }),
-    onSuccess: () => { qc.invalidateQueries(['assignments']); qc.invalidateQueries(['dashboard']) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
     onError: () => toast.error('Failed to reschedule'),
   })
 
@@ -251,17 +270,35 @@ export default function Schedule() {
             </div>
             <div className="grid grid-cols-7 gap-1 px-4 pb-4">
               {days.map(day => (
-                <DayCell key={day.toISOString()} day={day} currentMonth={currentDate}
-                  assignments={getAssignmentsForDay(day)} onSelect={setSelectedDay} selected={selectedDay} />
+                <DayCell
+                  key={day.toISOString()}
+                  day={day}
+                  currentMonth={currentDate}
+                  assignments={getAssignmentsForDay(day)}
+                  onSelect={setSelectedDay}
+                  selected={selectedDay}
+                  draggingId={monthDragging?.id}
+                  isDragOver={monthDragOver ? isSameDay(day, monthDragOver) : false}
+                  onDragStart={a => setMonthDragging(a)}
+                  onDragOver={d => setMonthDragOver(d)}
+                  onDrop={d => {
+                    if (monthDragging && !isSameDay(d, fromUnix(monthDragging.due_date))) {
+                      rescheduleMut.mutate({ id: monthDragging.id, due_date: toUnix(format(d, 'yyyy-MM-dd')) })
+                    }
+                    setMonthDragging(null)
+                    setMonthDragOver(null)
+                  }}
+                  onDragEnd={() => { setMonthDragging(null); setMonthDragOver(null) }}
+                />
               ))}
             </div>
           </>
-        ) : (
-          <>
-            <div className="grid grid-cols-7 px-4 pt-3 pb-1 border-b border-white/[0.04]">
-              {WEEKDAYS.map(d => <div key={d} className="text-center text-xs text-white/30 font-medium pb-2">{d}</div>)}
-            </div>
-          </>
+        ) : null}
+
+        {view === 'month' && (
+          <div className="px-4 py-2 border-t border-white/[0.04]">
+            <p className="text-[10px] text-white/20">Drag assignment pills between days to reschedule · click a day to see details</p>
+          </div>
         )}
       </Card>
 

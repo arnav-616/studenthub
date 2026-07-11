@@ -5,7 +5,14 @@ export function fromUnix(ts) {
 }
 
 export function toUnix(date) {
-  return date ? Math.floor(new Date(date).getTime() / 1000) : null
+  if (!date) return null
+  // 'YYYY-MM-DD' strings are parsed as UTC midnight by new Date(), which shifts
+  // the date backwards in negative-offset timezones. Parse them as local noon instead.
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [y, m, d] = date.split('-').map(Number)
+    return Math.floor(new Date(y, m - 1, d, 12, 0, 0).getTime() / 1000)
+  }
+  return Math.floor(new Date(date).getTime() / 1000)
 }
 
 export function formatDueDate(ts) {

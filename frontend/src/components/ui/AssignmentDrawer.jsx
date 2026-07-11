@@ -52,6 +52,7 @@ export default function AssignmentDrawer({ assignment, onClose, onEdit, subjects
   const [newSubtask, setNewSubtask] = useState('')
   const [newDep, setNewDep] = useState('')
   const [actualHours, setActualHours] = useState(assignment?.actual_hours ?? '')
+  const [progress, setProgress] = useState(assignment?.progress ?? 0)
 
   const { data: detail } = useQuery({
     queryKey: ['assignment-detail', assignment?.id],
@@ -73,40 +74,45 @@ export default function AssignmentDrawer({ assignment, onClose, onEdit, subjects
 
   const addSubtaskMut = useMutation({
     mutationFn: title => assignmentsApi.addSubtask(assignment.id, { title }),
-    onSuccess: () => { qc.invalidateQueries(['assignment-detail', assignment.id]); setNewSubtask('') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignment-detail', assignment.id] }); setNewSubtask('') },
   })
 
   const toggleSubtaskMut = useMutation({
     mutationFn: ({ stId, completed }) => assignmentsApi.updateSubtask(assignment.id, stId, { completed }),
-    onSuccess: () => qc.invalidateQueries(['assignment-detail', assignment.id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['assignment-detail', assignment.id] }),
   })
 
   const deleteSubtaskMut = useMutation({
     mutationFn: stId => assignmentsApi.deleteSubtask(assignment.id, stId),
-    onSuccess: () => qc.invalidateQueries(['assignment-detail', assignment.id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['assignment-detail', assignment.id] }),
   })
 
   const addDepMut = useMutation({
     mutationFn: depends_on_id => analytics.addDependency(assignment.id, depends_on_id),
-    onSuccess: () => { qc.invalidateQueries(['dependencies', assignment.id]); setNewDep('') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dependencies', assignment.id] }); setNewDep('') },
     onError: err => toast.error(err?.message || 'Failed to add dependency'),
   })
 
   const removeDepMut = useMutation({
     mutationFn: id => analytics.removeDependency(id),
-    onSuccess: () => qc.invalidateQueries(['dependencies', assignment.id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dependencies', assignment.id] }),
   })
 
   const updateActualMut = useMutation({
     mutationFn: hours => assignmentsApi.update(assignment.id, { actual_hours: hours }),
-    onSuccess: () => { qc.invalidateQueries(['assignments']); toast.success('Time logged') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); toast.success('Time logged') },
+  })
+
+  const updateProgressMut = useMutation({
+    mutationFn: p => assignmentsApi.update(assignment.id, { progress: p }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['assignments'] }),
   })
 
   const incrementSessionMut = useMutation({
     mutationFn: () => assignmentsApi.update(assignment.id, {
       sessions_completed: Math.min((detail?.sessions_completed || 0) + 1, detail?.sessions_total || 1),
     }),
-    onSuccess: () => { qc.invalidateQueries(['assignments']); qc.invalidateQueries(['dashboard']); qc.invalidateQueries(['assignment-detail', assignment.id]) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); qc.invalidateQueries({ queryKey: ['assignment-detail', assignment.id] }) },
   })
 
   async function fetchInsights() {
@@ -192,6 +198,35 @@ export default function AssignmentDrawer({ assignment, onClose, onEdit, subjects
               )}
             </Section>
 
+            {/* Progress */}
+            {a.status !== 'completed' && (
+              <Section title="Progress">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-white/40">Completion</span>
+                    <span className="font-semibold" style={{ color: 'var(--accent)' }}>{progress}%</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="100" step="5"
+                    className="w-full"
+                    style={{ accentColor: 'var(--accent)' }}
+                    value={progress}
+                    onChange={e => setProgress(parseInt(e.target.value))}
+                    onMouseUp={e => updateProgressMut.mutate(parseInt(e.target.value))}
+                    onTouchEnd={e => updateProgressMut.mutate(parseInt(e.target.value))}
+                  />
+                  <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ background: 'var(--accent)' }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                </div>
+              </Section>
+            )}
+
             {/* Session progress */}
             {a.sessions_total > 1 && (
               <Section title="Session Progress">
@@ -264,7 +299,7 @@ export default function AssignmentDrawer({ assignment, onClose, onEdit, subjects
                     <button
                       onClick={() => toggleSubtaskMut.mutate({ stId: st.id, completed: !st.completed })}
                       className="w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all"
-                      style={{ background: st.completed ? '#6366f1' : 'transparent', borderColor: st.completed ? '#6366f1' : 'rgba(255,255,255,0.2)' }}
+                      style={{ background: st.completed ? '#6366f1' : 'transparent', borderColor: st.completed ? '#6366f1' : 'var(--c-surface-border)' }}
                     >
                       {st.completed && <CheckIcon className="w-2.5 h-2.5 text-white" />}
                     </button>

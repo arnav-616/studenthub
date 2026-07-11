@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { format, subMonths, startOfMonth, parseISO } from 'date-fns'
@@ -10,10 +10,10 @@ const WEEKS_COUNT = 26
 const DAYS = ['', 'Mon', '', 'Wed', '', 'Fri', '']
 
 function getColor(score) {
-  if (score === 0 || score == null) return 'rgba(255,255,255,0.04)'
-  if (score < 20) return '#312e81'
-  if (score < 40) return '#4338ca'
-  if (score < 60) return '#6366f1'
+  if (score === 0 || score == null) return 'var(--c-surface-lo)'
+  if (score < 20) return '#4338ca'
+  if (score < 40) return '#6366f1'
+  if (score < 60) return '#818cf8'
   if (score < 75) return '#f59e0b'
   if (score < 90) return '#ef4444'
   return '#dc2626'
@@ -30,7 +30,7 @@ function HeatCell({ day }) {
       transition={{ duration: 0.1 }}
     >
       {hasData && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-navy-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 glass rounded-lg px-2 py-1.5 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20" style={{ minWidth: '120px' }}>
           <p className="font-medium text-white">{day.date}</p>
           <p className="text-white/50">Score: {day.score}</p>
           <p className="text-white/50">Due: {day.due} · Done: {day.completed}</p>
@@ -103,9 +103,40 @@ export default function Heatmap() {
   const monthLabels = getMonthLabels(weeks)
 
   const totalCompleted = heatData.reduce((acc, d) => acc + (d.completed || 0), 0)
-  const maxScore = Math.max(...heatData.map(d => d.score || 0), 1)
   const busyDays = heatData.filter(d => d.score >= 50).length
   const activeDays = heatData.filter(d => d.completed > 0).length
+
+  // Streak calculations
+  const currentStreak = useMemo(() => {
+    const sorted = [...heatData].sort((a, b) => b.date.localeCompare(a.date))
+    let streak = 0
+    for (const d of sorted) {
+      if ((d.completed || 0) > 0) streak++
+      else break
+    }
+    return streak
+  }, [heatData])
+
+  const bestStreak = useMemo(() => {
+    const sorted = [...heatData].sort((a, b) => a.date.localeCompare(b.date))
+    let best = 0, cur = 0
+    for (const d of sorted) {
+      if ((d.completed || 0) > 0) { cur++; if (cur > best) best = cur }
+      else cur = 0
+    }
+    return best
+  }, [heatData])
+
+  const bestDayOfWeek = useMemo(() => {
+    const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+    const totals = [0,0,0,0,0,0,0]
+    for (const d of heatData) {
+      const dow = new Date(d.date + 'T12:00:00').getDay()
+      totals[dow] += d.completed || 0
+    }
+    const maxIdx = totals.indexOf(Math.max(...totals))
+    return totals[maxIdx] > 0 ? DAYS_FULL[maxIdx] : null
+  }, [heatData])
 
   const LEGEND = [0, 15, 35, 55, 80, 95]
 
@@ -128,15 +159,18 @@ export default function Heatmap() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { label: 'Total Completed', value: totalCompleted },
-          { label: 'Busy Days', value: busyDays },
-          { label: 'Active Days', value: activeDays },
+          { label: 'Total Done',     value: totalCompleted, color: '#6366f1' },
+          { label: 'Active Days',    value: activeDays,     color: '#10b981' },
+          { label: 'Busy Days',      value: busyDays,       color: '#f59e0b' },
+          { label: 'Current Streak', value: `${currentStreak}d`, color: '#22d3ee' },
+          { label: 'Best Streak',    value: `${bestStreak}d`,    color: '#a78bfa' },
+          { label: 'Best Day',       value: bestDayOfWeek ?? '—', color: '#fb923c', small: true },
         ].map(s => (
           <Card key={s.label} className="text-center py-4">
-            <p className="text-2xl font-bold text-indigo-300">{s.value}</p>
-            <p className="text-xs text-white/40 mt-1">{s.label}</p>
+            <p className={cn('font-bold text-ellipsis overflow-hidden', s.small ? 'text-sm' : 'text-2xl')} style={{ color: s.color }}>{s.value}</p>
+            <p className="text-[11px] text-white/35 mt-1 leading-tight">{s.label}</p>
           </Card>
         ))}
       </div>

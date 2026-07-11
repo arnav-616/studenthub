@@ -31,7 +31,7 @@ export default function Login({ onAuth }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#0f1021' }}>
+    <div className="app-bg min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--c-bg)' }}>
       {/* Ambient glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full opacity-10"

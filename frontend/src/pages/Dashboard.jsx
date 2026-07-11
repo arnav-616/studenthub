@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import {
   ClockIcon, FireIcon, CheckCircleIcon, ExclamationTriangleIcon,
   SparklesIcon, LightBulbIcon, ArrowTrendingUpIcon,
+  CalendarDaysIcon, BoltIcon, BriefcaseIcon, SunIcon,
 } from '@heroicons/react/24/outline'
 import BusyScoreRing from '../components/ui/BusyScoreRing'
 import Card from '../components/ui/Card'
-import { dashboard, ai } from '../api/client'
+import { dashboard, ai, assignments as assignmentsApi, timer as timerApi } from '../api/client'
 import { formatDueDate, getDueStatus, getDueBadgeColor } from '../utils/dates'
 import { cn } from '../utils/cn'
 
@@ -31,7 +32,24 @@ const fadeUp = {
   show:   { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.25, 0.46, 0.45, 0.94] } },
 }
 
+function useCounter(target, duration = 700) {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    if (!target) { setCount(0); return }
+    const start = Date.now()
+    const timer = setInterval(() => {
+      const progress = Math.min((Date.now() - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setCount(Math.round(eased * target))
+      if (progress >= 1) clearInterval(timer)
+    }, 16)
+    return () => clearInterval(timer)
+  }, [target, duration])
+  return count
+}
+
 function StatCard({ label, value, icon: Icon, color, bg, loading, suffix }) {
+  const animated = useCounter(typeof value === 'number' && !loading ? value : 0)
   return (
     <motion.div variants={fadeUp}>
       <Card className="flex items-center gap-4 p-4">
@@ -43,7 +61,7 @@ function StatCard({ label, value, icon: Icon, color, bg, loading, suffix }) {
           <p className="text-xl font-bold mt-0.5 leading-none" style={{ color }}>
             {loading
               ? <span className="skeleton inline-block w-8 h-5 rounded" />
-              : <>{value}{suffix}</>
+              : <>{typeof value === 'number' ? animated : value}{suffix}</>
             }
           </p>
         </div>
@@ -123,6 +141,98 @@ function ProductivityChart({ data }) {
   )
 }
 
+function SuggestTaskCard() {
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const urgencyColor = { low: 'text-emerald-400', medium: 'text-amber-400', high: 'text-orange-400', critical: 'text-red-400' }
+
+  async function handleSuggest() {
+    setLoading(true)
+    try {
+      const data = await ai.suggestTask()
+      setResult(data)
+    } catch (err) {
+      toast.error(err?.message || 'AI is busy, try again')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <motion.div variants={fadeUp}>
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <BoltIcon className="w-4 h-4 text-violet-400" />
+            <p className="text-sm font-semibold text-white/80">What should I do right now?</p>
+          </div>
+          <button onClick={handleSuggest} disabled={loading}
+            className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50">
+            {loading ? <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" /> : <SparklesIcon className="w-3.5 h-3.5" />}
+            {loading ? 'Thinking…' : 'Ask AI'}
+          </button>
+        </div>
+        {result ? (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+            <p className="text-base font-semibold text-white">{result.title}</p>
+            <p className="text-sm text-white/60">{result.reason}</p>
+            {result.tip && (
+              <div className="rounded-xl p-3 bg-violet-500/10 border border-violet-500/20">
+                <p className="text-xs text-violet-300">{result.tip}</p>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className={cn('text-xs font-medium uppercase tracking-wide', urgencyColor[result.urgency] || 'text-white/40')}>
+                {result.urgency} urgency
+              </span>
+              <button onClick={() => setResult(null)} className="text-xs text-white/25 hover:text-white/50">Ask again</button>
+            </div>
+          </motion.div>
+        ) : (
+          <p className="text-sm text-white/30">AI analyzes your deadlines and tells you the single most important thing to work on right now.</p>
+        )}
+      </Card>
+    </motion.div>
+  )
+}
+
+function SubjectStatsCard() {
+  const { data: stats = [] } = useQuery({
+    queryKey: ['assignment-stats-subjects'],
+    queryFn: assignmentsApi.statsBySubject,
+  })
+  if (!stats.length) return null
+  return (
+    <motion.div variants={fadeUp}>
+      <Card className="p-5">
+        <p className="text-[11px] font-semibold text-white/30 uppercase tracking-widest mb-4">Completion by Subject</p>
+        <div className="space-y-3">
+          {stats.slice(0, 6).map(s => (
+            <div key={s.subject_id} className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/70">{s.subject_name}</span>
+                <span className="text-xs text-white/40">{s.completed}/{s.total}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                <motion.div className="h-full rounded-full"
+                  style={{ background: s.color || '#6366f1' }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${s.pct}%` }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-white/25">
+                <span>{s.pct}% complete</span>
+                <span>{s.total - s.completed} remaining</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </motion.div>
+  )
+}
+
 export default function Dashboard() {
   const [studyPlan, setStudyPlan] = useState(null)
   const [loadingPlan, setLoadingPlan] = useState(false)
@@ -134,6 +244,12 @@ export default function Dashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: dashboard.get,
+  })
+
+  const { data: timerStats } = useQuery({
+    queryKey: ['timer-stats'],
+    queryFn: timerApi.getStats,
+    staleTime: 60_000,
   })
 
   function handleAiError(err, label) {
@@ -185,6 +301,9 @@ export default function Dashboard() {
   const stats = data?.stats ?? {}
   const nextDue = Array.isArray(data?.nextDue) ? data.nextDue : data?.nextDue ? [data.nextDue] : []
   const dayStrip = data?.dayStrip ?? []
+  const freeTime = data?.freeTime ?? []
+  const today = data?.today ?? { assignments: [], upcoming48h: [], suggestedFocus: null }
+  const followUps = data?.followUps ?? []
   const productivity = data?.productivity ?? []
   const greeting = getGreeting()
 
@@ -327,7 +446,7 @@ export default function Dashboard() {
 
         {/* Stats + 7-day strip */}
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-4">
-          {/* 4 stat cards */}
+          {/* Stat cards */}
           <div className="grid grid-cols-2 gap-4">
             <StatCard
               label="Overdue"
@@ -363,6 +482,21 @@ export default function Dashboard() {
               suffix={stats.streak > 0 ? ' 🔥' : ''}
             />
           </div>
+          {/* Study time this week */}
+          {timerStats?.total_minutes > 0 && (
+            <motion.div variants={fadeUp}>
+              <div className="rounded-xl px-4 py-3 flex items-center gap-3"
+                style={{ background: 'rgba(34,211,238,0.07)', border: '1px solid rgba(34,211,238,0.15)' }}>
+                <ClockIcon className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                <div>
+                  <span className="text-sm font-semibold text-cyan-300">
+                    {(timerStats.total_minutes / 60).toFixed(1)}h studied
+                  </span>
+                  <span className="text-xs text-white/35 ml-2">this week · {timerStats.total_sessions} sessions</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* 7-day load strip */}
           <Card className="flex-1">
@@ -397,7 +531,7 @@ export default function Dashboard() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.05 }}
                       className="flex items-center gap-3 p-2.5 rounded-xl"
-                      style={{ background: 'rgba(255,255,255,0.03)' }}
+                      style={{ background: 'var(--c-surface-lo)' }}
                     >
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: a.subject_color || '#6366f1', boxShadow: `0 0 8px ${a.subject_color || '#6366f1'}80` }} />
                       <div className="flex-1 min-w-0">
@@ -427,7 +561,127 @@ export default function Dashboard() {
         </motion.div>
       </div>
 
-      {/* Row 3: AI Study Plan */}
+      {/* Row 3: Today View + Free Time */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Today view */}
+        <motion.div variants={fadeUp}>
+          <Card className="h-full" accent="rgba(99,102,241,0.5)">
+            <div className="flex items-center gap-2 mb-4">
+              <CalendarDaysIcon className="w-4 h-4 text-indigo-400/70" />
+              <p className="text-white/35 text-[11px] font-semibold tracking-widest uppercase">Today · {format(new Date(), 'MMM d')}</p>
+            </div>
+            {today.suggestedFocus && (
+              <div className="flex items-start gap-2 mb-3 p-2.5 rounded-xl" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.18)' }}>
+                <BoltIcon className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[11px] text-amber-300/70 font-semibold tracking-wide uppercase">Suggested focus</p>
+                  <p className="text-[13px] text-white/80 font-medium truncate mt-0.5">{today.suggestedFocus.title}</p>
+                </div>
+              </div>
+            )}
+            {today.assignments.length === 0 && today.upcoming48h.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-2">
+                <SunIcon className="w-8 h-8 text-white/10" />
+                <p className="text-white/25 text-sm">Nothing due today or soon</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {today.assignments.length > 0 && (
+                  <>
+                    <p className="text-[10px] text-white/25 uppercase tracking-widest mb-1">Due today</p>
+                    {today.assignments.slice(0, 3).map(a => (
+                      <div key={a.id} className="flex items-center gap-2.5 p-2 rounded-xl" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.14)' }}>
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: a.subject_color || '#ef4444' }} />
+                        <p className="text-sm text-white/80 truncate flex-1">{a.title}</p>
+                        <span className="text-[11px] text-red-400/70">{format(new Date(a.due_date * 1000), 'h:mm a')}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {today.upcoming48h.length > 0 && (
+                  <>
+                    <p className="text-[10px] text-white/25 uppercase tracking-widest mt-3 mb-1">Next 48 hours</p>
+                    {today.upcoming48h.slice(0, 4).map(a => (
+                      <div key={a.id} className="flex items-center gap-2.5 p-2 rounded-xl" style={{ background: 'var(--c-surface-lo)' }}>
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: a.subject_color || '#6366f1' }} />
+                        <p className="text-sm text-white/65 truncate flex-1">{a.title}</p>
+                        <span className="text-[11px] text-white/30">{format(new Date(a.due_date * 1000), 'EEE h:mm a')}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </Card>
+        </motion.div>
+
+        {/* Free time finder */}
+        <motion.div variants={fadeUp}>
+          <Card className="h-full" accent="rgba(16,185,129,0.5)">
+            <div className="flex items-center gap-2 mb-4">
+              <SunIcon className="w-4 h-4 text-emerald-400/70" />
+              <p className="text-white/35 text-[11px] font-semibold tracking-widest uppercase">Free Time This Week</p>
+            </div>
+            {freeTime.length === 0 ? (
+              <p className="text-white/25 text-sm text-center py-8">No free time data yet. Add your study settings and extracurriculars for accurate estimates.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {freeTime.map((d, i) => {
+                  const free = Math.max(0, d.freeHours)
+                  const capacity = free + (d.totalBusyHours || 0)
+                  const maxCapacity = Math.max(...freeTime.map(x => x.freeHours + (x.totalBusyHours || 0)), 1)
+                  const pct = free / maxCapacity
+                  const isToday = i === 0
+                  const color = free >= 3 ? '#10b981' : free >= 1 ? '#f59e0b' : '#ef4444'
+                  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+                  const dayLabel = isToday ? 'Today' : dayNames[new Date(d.date + 'T12:00:00').getDay()]
+                  const ecHours = d.ecHours || 0
+                  const workHours = d.hoursNeeded || 0
+                  return (
+                    <div key={d.date}>
+                      <div className="flex items-center gap-3">
+                        <span className={cn('text-[11px] w-10 flex-shrink-0', isToday ? 'text-white/70 font-semibold' : 'text-white/35')}>{dayLabel}</span>
+                        <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                          <motion.div className="h-full rounded-full" style={{ background: color }}
+                            initial={{ width: 0 }} animate={{ width: `${Math.max(pct * 100, free === 0 ? 0 : 2)}%` }}
+                            transition={{ delay: i * 0.05, duration: 0.5, ease: 'easeOut' }} />
+                        </div>
+                        <span className={cn('text-[11px] w-12 text-right flex-shrink-0', free >= 3 ? 'text-emerald-400' : free >= 1 ? 'text-amber-400' : 'text-red-400/70')}>
+                          {free.toFixed(1)}h
+                        </span>
+                      </div>
+                      {(ecHours > 0 || workHours > 0) && (
+                        <div className="flex gap-2 ml-[3.25rem] mt-0.5">
+                          {workHours > 0 && <span className="text-[10px] text-white/20">{workHours.toFixed(1)}h work</span>}
+                          {ecHours > 0 && <span className="text-[10px] text-indigo-400/40">{ecHours.toFixed(1)}h activities</span>}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                <p className="text-[10px] text-white/20 mt-1">Free study hours out of your daily capacity</p>
+              </div>
+            )}
+            {/* Application follow-ups */}
+            {followUps.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <BriefcaseIcon className="w-3.5 h-3.5 text-indigo-400/60" />
+                  <p className="text-[10px] text-white/30 uppercase tracking-widest">Follow-ups due this week</p>
+                </div>
+                {followUps.map(f => (
+                  <div key={f.id} className="flex items-center gap-2 py-1">
+                    <span className="text-[12px] text-white/60 truncate flex-1">{f.company} · {f.role}</span>
+                    <span className="text-[11px] text-amber-400/60">{format(new Date(f.follow_up_date * 1000), 'MMM d')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Row 4: AI Study Plan */}
       <motion.div variants={fadeUp}>
         <Card accent="linear-gradient(90deg, #8b5cf6, #6366f1)">
           <div className="flex items-center justify-between mb-4">
@@ -515,6 +769,12 @@ export default function Dashboard() {
           )}
         </Card>
       </motion.div>
+
+      {/* What should I do + Subject stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <SuggestTaskCard />
+        <SubjectStatsCard />
+      </div>
     </motion.div>
   )
 }
