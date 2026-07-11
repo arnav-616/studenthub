@@ -22,11 +22,11 @@ router.get('/sessions', (req, res) => {
 router.post('/sessions', (req, res) => {
   const db = getDb()
   const id = uuid()
-  const { assignment_id, started_at, ended_at, duration_minutes, session_type = 'focus' } = req.body
+  const { assignment_id, started_at, ended_at, duration_minutes, session_type = 'focus', subject_id } = req.body
   db.prepare(`
-    INSERT INTO timer_sessions (id,assignment_id,started_at,ended_at,duration_minutes,session_type,user_id)
-    VALUES (?,?,?,?,?,?,?)
-  `).run(id, assignment_id || null, started_at, ended_at || null, duration_minutes || null, session_type, req.userId)
+    INSERT INTO timer_sessions (id,assignment_id,started_at,ended_at,duration_minutes,session_type,user_id,subject_id)
+    VALUES (?,?,?,?,?,?,?,?)
+  `).run(id, assignment_id || null, started_at, ended_at || null, duration_minutes || null, session_type, req.userId, subject_id || null)
 
   if (assignment_id && duration_minutes) {
     const hours = duration_minutes / 60
@@ -52,6 +52,21 @@ router.get('/stats', (req, res) => {
     WHERE started_at >= ? AND session_type = 'focus' AND user_id = ?
   `).get(weekStart, req.userId)
   res.json(stats)
+})
+
+router.get('/stats/subjects', (req, res) => {
+  const db = getDb()
+  const rows = db.prepare(`
+    SELECT s.id as subject_id, s.name as subject_name, s.color,
+      COALESCE(SUM(ts.duration_minutes), 0) as total_minutes,
+      COUNT(ts.id) as session_count
+    FROM subjects s
+    LEFT JOIN timer_sessions ts ON ts.subject_id = s.id AND ts.user_id = s.user_id AND ts.session_type = 'focus'
+    WHERE s.user_id = ?
+    GROUP BY s.id
+    ORDER BY total_minutes DESC
+  `).all(req.userId)
+  res.json(rows)
 })
 
 export default router

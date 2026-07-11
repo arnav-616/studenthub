@@ -8,6 +8,8 @@ import {
   generateWeeklyDebrief,
   parseSyllabus,
   redistributeWorkload,
+  suggestNextTask,
+  reviewWriting,
 } from '../ai/claude.js'
 
 const router = Router()
@@ -159,6 +161,36 @@ router.post('/redistribute', async (req, res) => {
     res.json(plan)
   } catch (err) {
     console.error('Redistribute error:', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/suggest-task', async (req, res) => {
+  try {
+    const db = getDb()
+    const uid = req.userId
+    const assignments = db.prepare(`
+      SELECT a.*, s.name as subject_name FROM assignments a
+      LEFT JOIN subjects s ON a.subject_id = s.id
+      WHERE a.status != 'completed' AND a.user_id = ?
+    `).all(uid)
+    const subjects = db.prepare('SELECT * FROM subjects WHERE user_id = ?').all(uid)
+    const result = await suggestNextTask(assignments, subjects)
+    res.json(result)
+  } catch (err) {
+    console.error('Suggest task error:', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/review-writing', async (req, res) => {
+  try {
+    const { text, requirements = '' } = req.body
+    if (!text || text.trim().length < 50) return res.status(400).json({ error: 'Text too short (min 50 chars)' })
+    const result = await reviewWriting(text, requirements)
+    res.json(result)
+  } catch (err) {
+    console.error('Review writing error:', err)
     res.status(500).json({ error: err.message })
   }
 })

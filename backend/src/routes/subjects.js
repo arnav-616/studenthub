@@ -21,20 +21,24 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const db = getDb()
-  const { name, color = '#6366f1', icon } = req.body
+  const { name, color = '#6366f1', icon, professor, room, office_hours } = req.body
   if (!name) return res.status(400).json({ error: 'Name required' })
   const id = uuid()
-  db.prepare('INSERT INTO subjects (id,name,color,icon,user_id) VALUES (?,?,?,?,?)').run(id, name, color, icon || null, req.userId)
+  db.prepare('INSERT INTO subjects (id,name,color,icon,professor,room,office_hours,user_id) VALUES (?,?,?,?,?,?,?,?)').run(id, name, color, icon || null, professor || null, room || null, office_hours || null, req.userId)
   res.status(201).json(db.prepare('SELECT * FROM subjects WHERE id = ?').get(id))
 })
 
 router.put('/:id', (req, res) => {
   const db = getDb()
-  const { name, color, icon } = req.body
+  const { name, color, icon, professor, room, office_hours } = req.body
   const updates = []; const params = []
   if (name !== undefined) { updates.push('name = ?'); params.push(name) }
   if (color !== undefined) { updates.push('color = ?'); params.push(color) }
   if (icon !== undefined) { updates.push('icon = ?'); params.push(icon) }
+  if (professor !== undefined) { updates.push('professor = ?'); params.push(professor) }
+  if (room !== undefined) { updates.push('room = ?'); params.push(room) }
+  if (office_hours !== undefined) { updates.push('office_hours = ?'); params.push(office_hours) }
+  if (updates.length === 0) return res.json(db.prepare('SELECT * FROM subjects WHERE id = ?').get(req.params.id))
   params.push(req.params.id, req.userId)
   db.prepare(`UPDATE subjects SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`).run(...params)
   res.json(db.prepare('SELECT * FROM subjects WHERE id = ?').get(req.params.id))

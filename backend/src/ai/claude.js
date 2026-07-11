@@ -3,9 +3,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 // Fallback chain — tries each in order, skips on 503 (overload) or 429 (quota 0)
 const MODEL_CHAIN = [
   'gemini-2.5-flash',
-  'gemini-2.5-flash-lite-preview-06-17',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
 ]
 
 let _genAI = null
@@ -27,13 +27,12 @@ function isSkippable(err) {
 }
 
 async function generate(prompt) {
-  let lastErr
   for (const model of MODEL_CHAIN) {
     try {
       const result = await getModel(model).generateContent(prompt)
       return JSON.parse(result.response.text())
     } catch (err) {
-      if (isSkippable(err)) { lastErr = err; continue }
+      if (isSkippable(err)) continue
       throw err
     }
   }
@@ -197,6 +196,277 @@ Respond ONLY with valid JSON, no markdown:
   "courseName": null,
   "totalFound": 0
 }`
+
+  return generate(prompt)
+}
+
+export async function suggestNextTask(assignments, _subjects = []) {
+  const now = new Date()
+  const hour = now.getHours()
+  const upcoming = assignments
+    .filter(a => a.status !== 'completed')
+    .sort((a, b) => (a.due_date || 9999999999) - (b.due_date || 9999999999))
+    .slice(0, 15)
+
+  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
+
+  const prompt = `You are an academic advisor. A student wants to know the single best thing to work on RIGHT NOW.
+
+Current time: ${now.toLocaleString()} (${timeOfDay})
+
+Their pending assignments (sorted by due date):
+${upcoming.map(a => `- "${a.title}" | Due: ${a.due_date ? new Date(a.due_date * 1000).toDateString() : 'no date'} | Difficulty: ${a.difficulty} | Type: ${a.type} | Subject: ${a.subject_name || 'General'} | Est. hours: ${a.estimated_hours || '?'}`).join('\n') || '(none)'}
+
+Pick the SINGLE most important task to start right now. Consider due date urgency, difficulty, and time of day.
+
+Respond ONLY with this JSON:
+{
+  "title": "exact task title from the list",
+  "reason": "one sentence explanation of why this is the priority right now",
+  "urgency": "low|medium|high|critical",
+  "tip": "one concrete actionable tip for getting started on this task"
+}`
+
+  return generate(prompt)
+}
+
+export async function reviewWriting(text, requirements = '') {
+  const prompt = `You are an expert academic writing coach. Review the following student essay or writing sample.
+
+${requirements ? `Assignment requirements: ${requirements}\n` : ''}
+
+Writing sample:
+"""
+${text.slice(0, 6000)}
+"""
+
+Provide detailed, constructive feedback. Be specific and actionable, not vague.
+
+CRITICAL FORMATTING RULES:
+- Every string value must be plain prose. NO asterisks, NO markdown, NO bold (**), NO bullet dashes (-) inside string values.
+- Array items must be complete sentences.
+
+Respond ONLY with this JSON (no markdown, no backticks):
+{
+  "score": 82,
+  "grade": "B",
+  "overall": "2-3 sentence honest overall assessment",
+  "strengths": [
+    "Specific strength as a complete sentence",
+    "Another specific strength"
+  ],
+  "improvements": [
+    "Specific improvement needed as a complete sentence with example",
+    "Another improvement with concrete suggestion"
+  ],
+  "suggestions": [
+    "Actionable rewrite suggestion as a complete sentence",
+    "Another actionable suggestion"
+  ],
+  "thesisClear": true,
+  "evidenceStrong": true,
+  "flowGood": false
+}`
+
+  return generate(prompt)
+}
+
+export async function parseTranscript(text) {
+  const prompt = `You are parsing a student's grade report or transcript. This may be an official academic transcript OR an LMS grade report (Canvas, Blackboard, Moodle, etc.) showing individual assignment scores.
+
+Text to parse:
+"""
+${text.slice(0, 8000)}
+"""
+
+Detect what type it is:
+- OFFICIAL TRANSCRIPT: lists courses with letter grades (A, B+, etc.) and credits. No individual homework items.
+- LMS GRADE REPORT: lists individual assignments, quizzes, exams with point scores.
+
+For OFFICIAL TRANSCRIPTS, extract each course:
+- name, grade (letter like "A-"), gradePoints (4.0 scale), credits (number), semester (e.g. "Fall 2024")
+- items: [] (empty array)
+
+For LMS GRADE REPORTS, group items by course/category:
+- name: the course or category name
+- grade: overall letter grade if shown, else null
+- gradePoints: null
+- credits: 3 (default)
+- semester: null
+- items: array of { name, earned (points earned), max (points possible), category (assignment group name), categoryWeight (% weight of that group, 0-100) }
+
+Respond ONLY with valid JSON, no markdown:
+{
+  "courses": [
+    {
+      "name": "...",
+      "grade": "A-",
+      "gradePoints": 3.7,
+      "credits": 3,
+      "semester": "Fall 2024",
+      "items": []
+    }
+  ]
+}`
+
+  return generate(prompt)
+}
+
+export async function parseTranscriptFromImage(imageBuffer, mimeType = 'image/png') {
+  if (!_genAI) _genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  const prompt = `You are parsing a screenshot of a student's grades page or transcript. Extract all courses and/or assignment scores visible.
+
+If this shows COURSE GRADES (official transcript style): extract course name, letter grade, credit hours, semester.
+If this shows INDIVIDUAL ASSIGNMENT SCORES (LMS grade report): extract each item's name, points earned, points possible, category/group name.
+
+Respond ONLY with valid JSON, no markdown:
+{
+  "courses": [
+    {
+      "name": "Course name",
+      "grade": "A-",
+      "gradePoints": 3.7,
+      "credits": 3,
+      "semester": null,
+      "items": [
+        { "name": "HW 1", "earned": 95, "max": 100, "category": "Homework", "categoryWeight": 30 }
+      ]
+    }
+  ]
+}`
+
+  for (const modelName of MODEL_CHAIN) {
+    try {
+      const m = _genAI.getGenerativeModel({ model: modelName, generationConfig: { responseMimeType: 'application/json' } })
+      const result = await m.generateContent([
+        { inlineData: { mimeType, data: imageBuffer.toString('base64') } },
+        prompt,
+      ])
+      return JSON.parse(result.response.text())
+    } catch (err) {
+      if (isSkippable(err)) continue
+      throw err
+    }
+  }
+  throw new Error('AI models are busy — please try again in a moment')
+}
+
+export async function generateNotes(text, title = '') {
+  const prompt = `You are an expert study assistant. Create concise, exam-focused quick notes from the following content.
+${title ? `Topic: ${title}\n` : ''}
+
+Content:
+"""
+${text}
+"""
+
+Organize into clear sections with key bullet points. Include key terms and top takeaways.
+
+CRITICAL FORMATTING RULES:
+- Every string value must be plain prose. NO asterisks, NO markdown, NO bold (**), NO dashes (-) inside string values.
+- Array items must be complete sentences or phrases.
+
+Respond ONLY with valid JSON, no markdown, no backticks:
+{
+  "title": "concise topic title",
+  "summary": "2-3 sentence overview of the material",
+  "sections": [
+    {
+      "heading": "Section Name",
+      "detail": "optional 1-sentence context for this section",
+      "points": ["key point as a complete sentence", "another key point"]
+    }
+  ],
+  "keyTerms": [
+    { "term": "term name", "definition": "clear definition in one sentence" }
+  ],
+  "takeaways": ["Most important takeaway", "Second most important takeaway", "Third takeaway"]
+}`
+
+  return generate(prompt)
+}
+
+export async function generateStudyGuide(text, title = '') {
+  const prompt = `You are an expert tutor. Create a comprehensive study guide from the following content that will help a student ace an exam.
+${title ? `Topic: ${title}\n` : ''}
+
+Content:
+"""
+${text}
+"""
+
+CRITICAL FORMATTING RULES:
+- Every string value must be plain prose. NO asterisks, NO markdown, NO bold (**), NO dashes (-) inside string values.
+- Array items (bullets, questions, mistakes) must be complete sentences.
+
+Respond ONLY with valid JSON, no markdown, no backticks:
+{
+  "title": "Study Guide: [Topic]",
+  "overview": "3-4 sentence big-picture summary of what this material covers and why it matters",
+  "sections": [
+    {
+      "heading": "Section Name",
+      "content": "A paragraph explaining this concept clearly",
+      "bullets": ["Supporting detail as a complete sentence", "Another supporting detail"]
+    }
+  ],
+  "keyTerms": [
+    { "term": "term name", "definition": "precise definition in one sentence" }
+  ],
+  "examQuestions": [
+    "A likely exam question about this material?",
+    "Another exam question testing deeper understanding?"
+  ],
+  "commonMistakes": [
+    "A common error students make with this material, explained clearly",
+    "Another common misconception students have"
+  ],
+  "summary": "A 2-sentence reminder of the most critical things to remember"
+}`
+
+  return generate(prompt)
+}
+
+export async function generateFlashcards(text, title = '') {
+  const prompt = `You are a study flashcard expert. Create 15-25 high-quality flashcards from the following content. Each card should test one specific concept, term, or fact.
+${title ? `Topic: ${title}\n` : ''}
+
+Content:
+"""
+${text}
+"""
+
+CRITICAL FORMATTING RULES:
+- Every string value must be plain prose. NO asterisks, NO markdown, NO bold (**), NO dashes (-) inside string values.
+- Fronts should be clear questions or prompts.
+- Backs should be concise, memorable answers.
+
+Respond ONLY with valid JSON, no markdown, no backticks:
+{
+  "topic": "topic name",
+  "cards": [
+    { "front": "What is [concept]?", "back": "Clear, concise answer in 1-2 sentences" },
+    { "front": "Define [term]", "back": "The precise definition" }
+  ]
+}`
+
+  return generate(prompt)
+}
+
+export async function generateFollowUp(question, originalContent, mode, history = []) {
+  const historyText = history.slice(-6).map(m => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.content}`).join('\n')
+  const prompt = `You are an expert tutor helping a student understand their study material. Answer the student's follow-up question based on the content below.
+
+Study material mode: ${mode}
+Original content summary: ${JSON.stringify(originalContent).slice(0, 2000)}
+
+${historyText ? `Conversation so far:\n${historyText}\n` : ''}
+Student question: ${question}
+
+Give a clear, helpful answer that references the specific content when possible. Be concise but thorough. Use plain prose — no markdown, no asterisks.
+
+Respond ONLY with valid JSON, no markdown, no backticks:
+{ "answer": "Your clear answer here as plain prose" }`
 
   return generate(prompt)
 }
