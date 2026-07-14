@@ -1,5 +1,9 @@
 import jwt from 'jsonwebtoken'
 
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable must be set in production (generate one with: openssl rand -hex 32)')
+}
+
 export const JWT_SECRET = process.env.JWT_SECRET || 'studenthub-dev-secret-change-in-prod'
 export const JWT_EXPIRES = '30d'
 

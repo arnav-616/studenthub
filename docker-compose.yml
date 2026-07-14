@@ -7,14 +7,15 @@ services:
     environment:
       - PORT=3001
       - NODE_ENV=production
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - FRONTEND_URL=http://localhost
+      - "JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set. Generate one with `openssl rand -hex 32`}"
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
       - DB_PATH=/data/studenthub.db
     volumes:
       - studenthub-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/api/settings"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -23,7 +24,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://localhost:3001/api
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
     container_name: studenthub-frontend
     ports:
       - "80:80"

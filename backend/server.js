@@ -44,6 +44,15 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts, please try again later.' },
 })
 
+// Rate limiting — routes that call external AI APIs (Gemini) or third-party services (Canvas)
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many AI requests, please try again later.' },
+})
+
 // Public routes
 app.use('/api/auth', authLimiter, authRouter)
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }))
@@ -70,10 +79,10 @@ app.use('/api/dashboard', authMiddleware, dashboardRouter)
 app.use('/api/timer', authMiddleware, timerRouter)
 app.use('/api/grades', authMiddleware, gradesRouter)
 app.use('/api/settings', authMiddleware, settingsRouter)
-app.use('/api/ai', authMiddleware, aiRouter)
+app.use('/api/ai', authMiddleware, aiLimiter, aiRouter)
 app.use('/api/analytics', authMiddleware, analyticsRouter)
-app.use('/api/canvas', authMiddleware, canvasRouter)
-app.use('/api/study-tools', authMiddleware, studyToolsRouter)
+app.use('/api/canvas', authMiddleware, aiLimiter, canvasRouter)
+app.use('/api/study-tools', authMiddleware, aiLimiter, studyToolsRouter)
 app.use('/api/study-sessions', authMiddleware, studySessionsRouter)
 app.use('/api/extracurriculars', authMiddleware, extracurricularsRouter)
 app.use('/api/applications', authMiddleware, applicationsRouter)
