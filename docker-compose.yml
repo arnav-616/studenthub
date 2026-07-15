@@ -1,7 +1,7 @@
 services:
   backend:
     build: ./backend
-    container_name: studenthub-backend
+    container_name: cramr-backend
     ports:
       - "3001:3001"
     environment:
@@ -10,9 +10,9 @@ services:
       - "JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set. Generate one with `openssl rand -hex 32`}"
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
-      - DB_PATH=/data/studenthub.db
+      - DB_PATH=/data/cramr.db
     volumes:
-      - studenthub-data:/data
+      - cramr-data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/api/health"]
@@ -25,7 +25,7 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
-    container_name: studenthub-frontend
+    container_name: cramr-frontend
     ports:
       - "80:80"
     depends_on:
@@ -34,4 +34,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  studenthub-data:
+  cramr-data:

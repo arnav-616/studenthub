@@ -67,7 +67,7 @@ export default function Settings() {
     setNotifPermission(perm)
     if (perm === 'granted') {
       updateNotif('enabled', true)
-      sendNotification('StudentHub Notifications Enabled', 'You\'ll get deadline reminders and morning digests.')
+      sendNotification('Cramr Notifications Enabled', 'You\'ll get deadline reminders and morning digests.')
       toast.success('Notifications enabled!')
     } else {
       toast.error('Notification permission denied')
@@ -156,7 +156,7 @@ export default function Settings() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `studenthub-export-${new Date().toISOString().slice(0,10)}.json`
+      a.download = `cramr-export-${new Date().toISOString().slice(0,10)}.json`
       a.click()
       URL.revokeObjectURL(url)
       toast.success('Data exported!')
@@ -167,7 +167,7 @@ export default function Settings() {
     <div className="space-y-5 max-w-2xl">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-white/40 text-sm mt-0.5">Customize your StudentHub experience</p>
+        <p className="text-white/40 text-sm mt-0.5">Customize your Cramr experience</p>
       </div>
 
       {/* Canvas LMS */}
@@ -557,7 +557,7 @@ export default function Settings() {
                       toast.error(`Permission is "${perm}" — click Enable Notifications first, then allow in the browser popup`)
                       return
                     }
-                    sendNotification('👋 Test from StudentHub', 'Notifications are working!', 'test-' + Date.now())
+                    sendNotification('👋 Test from Cramr', 'Notifications are working!', 'test-' + Date.now())
                     toast.success('Sent!')
                   }}
                   className="text-xs px-3 py-1.5 rounded-lg transition-colors"

@@ -234,6 +234,19 @@
   80%       { transform: translate(-14px, -18px) scale(0.98); }
 }
 
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* Anonymous landing/login pages have no in-app motion setting yet —
+   honor the OS-level signal directly for their own continuous animations. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[gradient-shift_4s_ease_infinite\] {
+    animation: none !important;
+  }
+}
+
 /* ── Background effects intensity ── */
 [data-bg="subtle"] .ambient-orb  { opacity: 0.45 !important; }
 [data-bg="off"]    .ambient-orb  { opacity: 0 !important; animation: none !important; }

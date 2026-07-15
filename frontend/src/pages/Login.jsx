@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Link, useSearchParams } from 'react-router-dom'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { AcademicCapIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { EyeIcon, EyeSlashIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { auth as authApi } from '../api/client'
+import Logo from '../components/ui/Logo'
 
 export default function Login({ onAuth }) {
-  const [tab, setTab] = useState('login')
+  const reduceMotion = useReducedMotion()
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState(searchParams.get('tab') === 'signup' ? 'signup' : 'login')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', password: '' })
@@ -31,29 +35,59 @@ export default function Login({ onAuth }) {
   }
 
   return (
-    <div className="app-bg min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--c-bg)' }}>
-      {/* Ambient glow */}
+    <div className="app-bg min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'var(--c-bg)' }}>
+      {/* Ambient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)' }} />
+        <motion.div
+          className="ambient-orb absolute top-[8%] left-[20%] w-[550px] h-[550px] rounded-full opacity-20"
+          style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)' }}
+          animate={reduceMotion ? {} : { x: [0, 40, 0], y: [0, 30, 0] }}
+          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="ambient-orb absolute bottom-[5%] right-[15%] w-[450px] h-[450px] rounded-full opacity-15"
+          style={{ background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)' }}
+          animate={reduceMotion ? {} : { x: [0, -35, 0], y: [0, -25, 0] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="ambient-orb absolute top-[45%] right-[30%] w-[300px] h-[300px] rounded-full opacity-10"
+          style={{ background: 'radial-gradient(circle, #ec4899 0%, transparent 70%)' }}
+          animate={reduceMotion ? {} : { x: [0, 20, 0], y: [0, 25, 0] }}
+          transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle, var(--c-dot-grid) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full max-w-sm"
       >
+        <Link to="/" className="inline-flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors mb-6">
+          <ArrowLeftIcon className="w-3.5 h-3.5" /> Back to home
+        </Link>
+
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 mb-4">
-            <AcademicCapIcon className="w-7 h-7 text-indigo-400" />
+          <div className="relative inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4">
+            {!reduceMotion && (
+              <motion.div
+                className="absolute inset-0 rounded-2xl"
+                style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.5) 0%, transparent 70%)' }}
+                animate={{ opacity: [0.3, 0.8, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            )}
+            <Logo size={38} className="relative" />
           </div>
-          <h1 className="text-2xl font-bold text-white">StudentHub</h1>
+          <h1 className="text-2xl font-bold text-white">Cramr</h1>
           <p className="text-white/40 text-sm mt-1">Your academic command center</p>
         </div>
 
         {/* Card */}
-        <div className="glass rounded-2xl p-6">
+        <div className="glass-elevated rounded-2xl p-6">
           {/* Tabs */}
           <div className="flex gap-1 bg-white/[0.04] rounded-xl p-1 mb-6">
             {['login', 'signup'].map(t => (

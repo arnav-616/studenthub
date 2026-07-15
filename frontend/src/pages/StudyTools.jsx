@@ -1516,7 +1516,7 @@ export default function StudyTools() {
                   {/* print header */}
                   <div className="hidden print:block mb-6">
                     <h1 className="text-2xl font-bold">{result.title || result.topic}</h1>
-                    <p className="text-sm text-gray-500 mt-1">StudentHub Study Tools · {new Date().toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-500 mt-1">Cramr Study Tools · {new Date().toLocaleDateString()}</p>
                   </div>
 
                   {resultMode === 'notes' && (

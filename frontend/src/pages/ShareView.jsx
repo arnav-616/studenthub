@@ -56,7 +56,7 @@ export default function ShareView() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-white">Shared Assignments</h1>
-          <p className="text-white/35 text-sm mt-1">{data.assignments.length} pending · read-only view via StudentHub</p>
+          <p className="text-white/35 text-sm mt-1">{data.assignments.length} pending · read-only view via Cramr</p>
         </div>
 
         <div className="space-y-4">
@@ -108,7 +108,7 @@ export default function ShareView() {
         </div>
 
         <p className="text-center text-white/20 text-xs mt-10">
-          Shared via <span className="text-indigo-400">StudentHub</span> · {format(new Date(), 'MMM d, yyyy')}
+          Shared via <span className="text-indigo-400">Cramr</span> · {format(new Date(), 'MMM d, yyyy')}
         </p>
       </div>
     </div>

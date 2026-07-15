@@ -1,0 +1,9 @@
+export default function Logo({ size = 28, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 56 56" className={className} aria-hidden="true">
+      <rect x="18" y="10" width="26" height="26" rx="7" fill="#ec4899" opacity="0.85" transform="rotate(6 21 35)" />
+      <rect x="12" y="16" width="26" height="26" rx="7" fill="#a855f7" opacity="0.9" transform="rotate(3 21 35)" />
+      <rect x="8" y="22" width="26" height="26" rx="7" fill="#6366f1" />
+    </svg>
+  )
+}

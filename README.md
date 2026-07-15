@@ -1,4 +1,4 @@
-# StudentHub
+# Cramr
 
 A full-stack academic command center for college students — deadlines, grades, study time, and workload all in one place, with AI woven in where it actually saves time.
 
@@ -64,7 +64,7 @@ export GEMINI_API_KEY=your-key-here
 docker-compose up --build
 ```
 
-The frontend serves on port `80`, the API on `3001`. Data persists in a named Docker volume (`studenthub-data`) so it survives container restarts.
+The frontend serves on port `80`, the API on `3001`. Data persists in a named Docker volume (`cramr-data`) so it survives container restarts.
 
 ![Settings](docs/screenshots/settings.png)
 

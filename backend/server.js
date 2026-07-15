@@ -112,5 +112,5 @@ app.use((err, req, res, next) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`StudentHub backend running on port ${PORT}`)
+  console.log(`Cramr backend running on port ${PORT}`)
 })

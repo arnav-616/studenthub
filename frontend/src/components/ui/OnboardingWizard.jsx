@@ -98,7 +98,7 @@ export default function OnboardingWizard({ onDone, userName }) {
         Welcome{userName ? `, ${userName.split(' ')[0]}` : ''}! 🎓
       </h2>
       <p className="text-white/50 text-sm leading-relaxed max-w-xs mx-auto">
-        StudentHub is your all-in-one academic command center. Let's get you set up in 3 quick steps — takes less than a minute.
+        Cramr is your all-in-one academic command center. Let's get you set up in 3 quick steps — takes less than a minute.
       </p>
       <div className="grid grid-cols-2 gap-3 mt-6 text-left">
         {FEATURES.map(f => (

@@ -1,4 +1,4 @@
-const CACHE = 'studenthub-v1'
+const CACHE = 'cramr-v1'
 const STATIC = ['/', '/index.html']
 
 self.addEventListener('install', e => {

@@ -131,7 +131,7 @@ function checkAndFireNotifications(assignments, settings) {
         let body = ''
         if (dueToday.length > 0) body += `${dueToday.length} due today`
         if (overdue.length > 0) body += (body ? ' · ' : '') + `${overdue.length} overdue`
-        sendNotification('🎓 StudentHub Morning Digest', body, 'daily-digest')
+        sendNotification('🎓 Cramr Morning Digest', body, 'daily-digest')
       }
       localStorage.setItem(LAST_DIGEST_KEY, todayStr)
     }

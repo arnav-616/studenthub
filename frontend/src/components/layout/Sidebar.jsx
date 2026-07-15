@@ -9,7 +9,6 @@ import {
   FireIcon,
   BookOpenIcon,
   Cog6ToothIcon,
-  AcademicCapIcon,
   ArrowRightOnRectangleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -19,6 +18,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useUIStore } from '../../store/useUIStore'
 import { cn } from '../../utils/cn'
+import Logo from '../ui/Logo'
 
 const sections = [
   {
@@ -79,21 +79,15 @@ export default function Sidebar({ user, onLogout }) {
       <div className={cn('px-3 pt-5 pb-4 flex items-center', sidebarCollapsed ? 'justify-center' : 'justify-between')}>
         {!sidebarCollapsed && (
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 75%, #000))', boxShadow: '0 0 20px color-mix(in srgb, var(--accent) 50%, transparent)' }}>
-              <AcademicCapIcon className="w-5 h-5 text-white" />
-            </div>
+            <Logo size={34} className="flex-shrink-0" />
             <div className="min-w-0">
-              <p className="font-bold text-white text-[15px] leading-tight tracking-tight truncate">StudentHub</p>
+              <p className="font-bold text-white text-[15px] leading-tight tracking-tight truncate">Cramr</p>
               <p className="text-white/35 text-[11px] mt-0.5 tracking-wide">Academic OS</p>
             </div>
           </div>
         )}
         {sidebarCollapsed && (
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 75%, #000))' }}>
-            <AcademicCapIcon className="w-5 h-5 text-white" />
-          </div>
+          <Logo size={30} className="flex-shrink-0" />
         )}
         {!sidebarCollapsed && (
           <button onClick={toggleSidebar}

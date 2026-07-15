@@ -25,7 +25,7 @@ router.get('/export.ics', (req, res) => {
     ORDER BY a.due_date ASC
   `).all(req.userId)
 
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//StudentHub//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH']
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cramr//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH']
   for (const a of assignments) {
     const dt = new Date(a.due_date * 1000)
     const pad = n => String(n).padStart(2, '0')
@@ -34,7 +34,7 @@ router.get('/export.ics', (req, res) => {
     const desc = [a.subject_name, a.type, a.difficulty ? `(${a.difficulty})` : ''].filter(Boolean).join(' · ')
     lines.push(
       'BEGIN:VEVENT',
-      `UID:${a.id}@studenthub`,
+      `UID:${a.id}@cramr`,
       `DTSTART;VALUE=DATE:${icsDate}`,
       `DTEND;VALUE=DATE:${icsDate}`,
       `SUMMARY:${summary}`,
@@ -45,7 +45,7 @@ router.get('/export.ics', (req, res) => {
   }
   lines.push('END:VCALENDAR')
   res.set('Content-Type', 'text/calendar')
-  res.set('Content-Disposition', 'attachment; filename="studenthub-assignments.ics"')
+  res.set('Content-Disposition', 'attachment; filename="cramr-assignments.ics"')
   res.send(lines.filter(Boolean).join('\r\n'))
 })
 
@@ -79,7 +79,7 @@ router.get('/export.csv', (req, res) => {
   ]
 
   res.set('Content-Type', 'text/csv')
-  res.set('Content-Disposition', 'attachment; filename="studenthub-assignments.csv"')
+  res.set('Content-Disposition', 'attachment; filename="cramr-assignments.csv"')
   res.send(csvLines.join('\n'))
 })
 

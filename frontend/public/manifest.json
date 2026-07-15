@@ -1,6 +1,6 @@
 {
-  "name": "StudentHub",
-  "short_name": "StudentHub",
+  "name": "Cramr",
+  "short_name": "Cramr",
   "description": "Your academic command center",
   "start_url": "/",
   "display": "standalone",

@@ -1,4 +1,4 @@
-import { useState, useEffect, Component } from 'react'
+import { useState, useEffect, Component, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
@@ -12,19 +12,30 @@ import useNotifications from './hooks/useNotifications'
 import { assignments as assignmentsApi, subjects as subjectsApi, settingsApi } from './api/client'
 import { useUIStore } from './store/useUIStore'
 import Login from './pages/Login'
+import Landing from './pages/Landing'
 import ShareView from './pages/ShareView'
 
-import Dashboard from './pages/Dashboard'
-import Assignments from './pages/Assignments'
-import Schedule from './pages/Schedule'
-import Timer from './pages/Timer'
-import Grades from './pages/Grades'
-import Heatmap from './pages/Heatmap'
-import Subjects from './pages/Subjects'
-import Settings from './pages/Settings'
-import StudyTools from './pages/StudyTools'
-import Extracurriculars from './pages/Extracurriculars'
-import Applications from './pages/Applications'
+// Lazy-loaded: the authenticated app shouldn't be part of the anonymous
+// landing/login bundle — those visitors haven't signed up yet.
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Assignments = lazy(() => import('./pages/Assignments'))
+const Schedule = lazy(() => import('./pages/Schedule'))
+const Timer = lazy(() => import('./pages/Timer'))
+const Grades = lazy(() => import('./pages/Grades'))
+const Heatmap = lazy(() => import('./pages/Heatmap'))
+const Subjects = lazy(() => import('./pages/Subjects'))
+const Settings = lazy(() => import('./pages/Settings'))
+const StudyTools = lazy(() => import('./pages/StudyTools'))
+const Extracurriculars = lazy(() => import('./pages/Extracurriculars'))
+const Applications = lazy(() => import('./pages/Applications'))
+
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <span className="w-6 h-6 border-2 border-white/15 border-t-indigo-400 rounded-full animate-spin" />
+    </div>
+  )
+}
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null } }
@@ -193,22 +204,24 @@ function AppInner({ user, onLogout }) {
         )}
       </AnimatePresence>
       <Layout user={user} onLogout={onLogout}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/assignments" element={<Assignments />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/timer" element={<Timer />} />
-          <Route path="/grades" element={<Grades />} />
-          <Route path="/heatmap" element={<Heatmap />} />
-          <Route path="/subjects" element={<Subjects />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/study-tools" element={<StudyTools />} />
-          <Route path="/extracurriculars" element={<Extracurriculars />} />
-          <Route path="/applications" element={<Applications />} />
-          <Route path="/share/:token" element={<ShareView />} />
-          <Route path="/login" element={<Navigate to="/" replace />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/assignments" element={<Assignments />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/timer" element={<Timer />} />
+            <Route path="/grades" element={<Grades />} />
+            <Route path="/heatmap" element={<Heatmap />} />
+            <Route path="/subjects" element={<Subjects />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/study-tools" element={<StudyTools />} />
+            <Route path="/extracurriculars" element={<Extracurriculars />} />
+            <Route path="/applications" element={<Applications />} />
+            <Route path="/share/:token" element={<ShareView />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </Layout>
     </BrowserRouter>
   )
@@ -238,7 +251,9 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/share/:token" element={<ShareView />} />
-            <Route path="*" element={<Login onAuth={handleAuth} />} />
+            <Route path="/login" element={<Login onAuth={handleAuth} />} />
+            <Route path="/" element={<Landing />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       ) : (
