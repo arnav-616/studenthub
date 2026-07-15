@@ -2,6 +2,8 @@
 
 A full-stack academic command center for college students — deadlines, grades, study time, and workload all in one place, with AI woven in where it actually saves time.
 
+**Live demo:** [studenthub-fawn.vercel.app](https://studenthub-fawn.vercel.app) — frontend on Vercel, API on Fly.io.
+
 ![Dashboard](docs/screenshots/dashboard.png)
 
 ## Features
